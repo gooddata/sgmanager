@@ -1,3 +1,3 @@
 from gdc.sgmanager import SGManager
-manager = SGManager('./conf/groups.yaml')
+manager = SGManager()
 manager.load_remote_groups()

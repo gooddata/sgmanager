@@ -89,7 +89,8 @@ class SecurityGroups(object):
             for rule in group.rules:
                 rule_info = {
                     'port' : int(rule.to_port),
-                    'protocol'  : str(rule.ip_protocol)
+                    'protocol'  : str(rule.ip_protocol),
+                    'groups' : None,
                 }
 
                 if rule.from_port != rule.to_port:
@@ -98,19 +99,13 @@ class SecurityGroups(object):
                 # For each granted permission
                 for grant in rule.grants:
                     try:
-                        # Rule is granted for another security group
-                        if not rule_info.has_key('groups'):
-                            rule_info['groups'] = []
-
                         rule_info['groups'].append({
-                            str(grant.groupName) : {
+                                'name'  : grant.groupName,
                                 'owner' : str(grant.owner_id),
                                 'id'    : str(grant.groupId)
-                            }
-                        })
+                            })
                     except AttributeError:
-                        rule_info['cidr'] = []
-                        rule_info['cidr'].append(str(grant.cidr_ip))
+                        rule_info['cidr'] = [ str(grant.cidr_ip) ]
 
                 srule = SRule(**rule_info)
                 sgroup.add_rule(srule)
@@ -147,19 +142,6 @@ class SecurityGroups(object):
                 srule = SRule(**rule)
                 # Add it into group
                 sgroup.add_rule(srule)
-
-                # TODO: WTF is this?!
-                # Unify values..
-                # if rule.has_key('rules'):
-                #     # Check rule validity
-                #     assert isinstance(rule['rules'], list),\
-                #         'Parameter rules should be list of allowed security rules for rule %s' % name
-                #     for sg in rule['rules']:
-                #         # Convert rule name to unified dictionary
-                #         if not isinstance(sg, dict):
-                #             sg = {
-                #                 sg: { 'id': None, 'owner': None }
-                #             }
 
             self.groups[name] = sgroup
 
@@ -210,16 +192,35 @@ class SRule(object):
     """
     Single security group rule
     """
-    def __init__(self, port=None, port_from=None, port_to=None, groups=None, protocol='tcp', cidr=None):
+    def __init__(self, port=None, port_from=None, port_to=None, groups=[], protocol='tcp', cidr=None):
         """
         Initialize variables
         """
+        # TODO: fix name - we want to identify the rules (index?)
+        self.name = 'TODO'
+
+        self.protocol = protocol
         self.port = port
         self.port_from = port_from
         self.port_to = port_to
+
         self.groups = groups
         self.group = None
-        self.protocol = protocol
+
+        # Check validity of groups parameter
+        if self.groups:
+            if not isinstance(self.groups, list):
+                raise InvalidConfiguration('Parameter groups should be list of allowed security groups for rule %s' % self.name)
+
+            # Unify format for granted group permissions
+            # it has to contain id and group owner (account id)
+            for group in groups:
+                if not isinstance(group, dict):
+                    group = {
+                        'name' : group,
+                        'owner': None,
+                        'id'   : None,
+                    }
 
         # Allow all if we haven't chosen groups or cidr
         if not cidr and not groups:
@@ -243,15 +244,14 @@ class SRule(object):
         """
         Check configuration
         """
-        # TODO: fix name - we want to identify the rules (index?)
         if not isinstance(self.port, int):
-            raise InvalidConfiguration('Port must be integer for rule %s' % name)
+            raise InvalidConfiguration('Port must be integer for rule %s' % self.name)
 
         if self.port_from and not isinstance(self.port_from, int):
-            raise InvalidConfiguration('Parameter port_from must be integer for rule %s' % name)
+            raise InvalidConfiguration('Parameter port_from must be integer for rule %s' % self.name)
 
         if self.port_to and not isinstance(self.port_to, int):
-            raise InvalidConfiguration('Parameter port_to must be integer for rule %s' % name)
+            raise InvalidConfiguration('Parameter port_to must be integer for rule %s' % self.name)
 
         if self.protocol and self.protocol not in ['tcp', 'udp', 'icmp']:
-            raise InvalidConfiguration('Protocol must be tcp, udp or icmp, not %s for rule %s' % (self.protocol, name))
+            raise InvalidConfiguration('Protocol must be tcp, udp or icmp, not %s for rule %s' % (self.protocol, self.name))
