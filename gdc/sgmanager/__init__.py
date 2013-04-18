@@ -5,10 +5,10 @@
 import os
 import boto
 import yaml
+from gdc.sgmanager.exceptions import *
 
 # TODO: diff local and remote groups and their rules
 # TODO: apply differences
-# TODO: logging and user-friendly exceptions
 
 class SGManager(object):
     ec2 = None
@@ -82,10 +82,8 @@ class SecurityGroups(object):
         """
         groups = self.ec2.get_all_security_groups()
         for group in groups:
-            self.groups[str(group.name)] = {
-                'description' : str(group.description),
-                'rules' : []
-            }
+            # Initialize SGroup object
+            sgroup = SGroup(str(group.name), str(group.description))
 
             # For each rule in group
             for rule in group.rules:
@@ -114,7 +112,10 @@ class SecurityGroups(object):
                         rule_info['cidr'] = []
                         rule_info['cidr'].append(str(grant.cidr_ip))
 
-                self.groups[group.name]['rules'].append(rule_info)
+                srule = SRule(**rule_info)
+                sgroup.add_rule(srule)
+
+            self.groups[sgroup.name] = sgroup
 
         return self.groups
 
@@ -133,48 +134,34 @@ class SecurityGroups(object):
             with open(config, 'r') as fp:
                 conf = yaml.load(fp)
         except IOError as e:
-            # TODO: lg.error("Can't read config file %s: %s" % (config, e))
-            raise
+            raise InvalidConfiguration("Can't read config file %s: %s" % (config, e))
         except Exception as e:
-            # TODO: lg.error("Can't parse config file %s: %s" % (config, e))
-            raise
+            raise InvalidConfiguration("Can't parse config file %s: %s" % (config, e))
 
         for name, group in conf.iteritems():
+            # Initialize SGroup object
+            sgroup = SGroup(name, None if not group.haskey('description') else group['description'])
+
             for rule in group['rules']:
-                # Check configuration
-                assert isinstance(rule['port'], int), 'Port must be integer for rule %s' % name
-                if rule.has_key('port_from'):
-                    assert isinstance(rule['port_from'], int),\
-                        'Parameter port_from must be integer for rule %s' % name
+                # Initialize SRule object
+                srule = SRule(**rule)
+                # Add it into group
+                sgroup.add_rule(srule)
 
-                if rule.has_key('protocol'):
-                    assert (rule['protocol'] in ['tcp', 'udp', 'icmp']),\
-                        'Protocol must be tcp, udp or icmp, not %s for rule %s' % (rule['protocol'], name)
-                else:
-                    rule['protocol'] = 'tcp'
-    
+                # TODO: WTF is this?!
                 # Unify values..
-                # convert string cidr to list
-                if rule.has_key('cidr') and not isinstance(rule['cidr'], list):
-                    rule['cidr'] = [ rule['cidr'] ]
-    
-                if rule.has_key('rules'):
-                    # Check rule validity
-                    assert isinstance(rule['rules'], list),\
-                        'Parameter rules should be list of allowed security rules for rule %s' % name
-                    for sg in rule['rules']:
-                        # Convert rule name to unified dictionary
-                        if not isinstance(sg, dict):
-                            sg = {
-                                sg: { 'id': None, 'owner': None }
-                            }
-    
-                # Default values..
-                # allow all if we haven't chosen groups or cidr
-                if not rule.has_key('cidr') and not rule.has_key('groups'):
-                    rule['cidr'] = ['0.0.0.0/0']
+                # if rule.has_key('rules'):
+                #     # Check rule validity
+                #     assert isinstance(rule['rules'], list),\
+                #         'Parameter rules should be list of allowed security rules for rule %s' % name
+                #     for sg in rule['rules']:
+                #         # Convert rule name to unified dictionary
+                #         if not isinstance(sg, dict):
+                #             sg = {
+                #                 sg: { 'id': None, 'owner': None }
+                #             }
 
-            self.groups[name] = group
+            self.groups[name] = sgroup
 
     def _yaml_include(self, loader, node):
         """
@@ -186,12 +173,85 @@ class SecurityGroups(object):
             with open(filepath, 'r') as inputfile:
                 return yaml.load(inputfile)
         except IOError as e:
-            # TODO: lg.error("Can't include config file %s: %s" % (filepath, e))
-            raise
+            raise InvalidConfiguration("Can't include config file %s: %s" % (filepath, e))
 
     def dump_groups(self):
         """
         Return YAML dump of loaded groups
         :rtype : basestring
         """
+        # TODO: fixme (broken by refactoring)
         return yaml.dump(self.groups)
+
+
+class SGroup(object):
+    """
+    Single security group and it's rules
+    """
+    def __init__(self, name=None, description=None, rules=[]):
+        self.name = name
+        self.description = description
+        self.rules = rules
+
+        # Set group membership for rules
+        for rule in rules:
+            rule.group = self
+
+    def add_rule(self, rule):
+        """
+        Add new rule
+        """
+        assert isinstance(rule, SRule), "Given rule is not instance of SRule but %s" % type(rule)
+        rule.set_group(self)
+        self.rules.append(rule)
+
+
+class SRule(object):
+    """
+    Single security group rule
+    """
+    def __init__(self, port=None, port_from=None, port_to=None, groups=None, protocol='tcp', cidr=None):
+        """
+        Initialize variables
+        """
+        self.port = port
+        self.port_from = port_from
+        self.port_to = port_to
+        self.groups = groups
+        self.group = None
+        self.protocol = protocol
+
+        # Allow all if we haven't chosen groups or cidr
+        if not cidr and not groups:
+            self.cidr = ['0.0.0.0/0']
+        else:
+            # convert string cidr to list
+            if cidr and not isinstance(cidr, list):
+                self.cidr = [ self.cidr ]
+            else:
+                self.cidr = cidr
+
+        self._check_configuration()
+
+    def set_group(self, group):
+        """
+        Set group membership
+        """
+        self.group = group
+
+    def _check_configuration(self):
+        """
+        Check configuration
+        """
+        # TODO: fix name - we want to identify the rules (index?)
+        if not isinstance(self.port, int):
+            raise InvalidConfiguration('Port must be integer for rule %s' % name)
+
+        if self.port_from and not isinstance(self.port_from, int):
+            raise InvalidConfiguration('Parameter port_from must be integer for rule %s' % name)
+
+        if self.port_to and not isinstance(self.port_to, int):
+            raise InvalidConfiguration('Parameter port_to must be integer for rule %s' % name)
+
+        if self.protocol and self.protocol not in ['tcp', 'udp', 'icmp']:
+            raise InvalidConfiguration('Protocol must be tcp, udp or icmp, not %s for rule %s' % (self.protocol, name))
