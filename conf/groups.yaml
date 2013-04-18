@@ -1,0 +1,33 @@
+---
+test1:
+  description: "FPY's testing security group"
+  rules:
+    - port: 22
+      protocol: tcp
+
+    - port: 80
+      protocol: tcp
+      groups:
+        - test2
+test2:
+  description: "FPY's testing security group number 2"
+  rules:
+    - port: 80
+      groups:
+        - test1
+
+#test1:
+#  description: FPY's testing security group
+#  rules:
+#  - cidr: [0.0.0.0/0]
+#    port: 22
+#    protocol: tcp
+#  - groups: [test2]
+#    port: 80
+#    protocol: tcp
+#test2:
+#  description: FPY's testing security group number 2
+#  rules:
+#  - groups: [test1]
+#    port: 80
+#    protocol: tcp
