@@ -12,13 +12,6 @@ from itertools import count
 # TODO: apply differences
 
 class SGManager(object):
-    ec2 = None
-
-    config = None
-
-    remote = None
-    local = None
-
     def __init__(self, **kwargs):
         """
         Connect to EC2
@@ -26,6 +19,10 @@ class SGManager(object):
         :param kwargs: parameters for boto.connect_ec2()
         """
         self.ec2 = boto.connect_ec2(**kwargs)
+
+        self.remote = None
+        self.local  = None
+        self.config = None
 
     def load_remote_groups(self):
         """
@@ -63,10 +60,6 @@ class SGManager(object):
         return self.local.dump_groups()
 
 class SecurityGroups(object):
-    ec2 = None
-    groups = None
-    config = None
-
     def __init__(self, ec2):
         """
         Create instance, save ec2 connection
@@ -74,6 +67,7 @@ class SecurityGroups(object):
         """
         self.ec2 = ec2
         self.groups = {}
+        self.config = None
 
     def load_remote_groups(self):
         """
@@ -140,7 +134,7 @@ class SecurityGroups(object):
 
         for name, group in conf.iteritems():
             # Initialize SGroup object
-            sgroup = SGroup(name, None if not group.haskey('description') else group['description'])
+            sgroup = SGroup(name, None if not group.has_key('description') else group['description'])
 
             for rule in group['rules']:
                 # Initialize SRule object
@@ -149,6 +143,8 @@ class SecurityGroups(object):
                 sgroup.add_rule(srule)
 
             self.groups[name] = sgroup
+
+        return self.groups
 
     def _yaml_include(self, loader, node):
         """
@@ -182,14 +178,17 @@ class SGroup(object):
     """
     Single security group and it's rules
     """
-    def __init__(self, name=None, description=None, rules=[]):
+    def __init__(self, name=None, description=None, rules=None):
         self.name = name
         self.description = description
-        self.rules = rules
 
-        # Set group membership for rules
-        for rule in rules:
-            rule.group = self
+        if not rules:
+            self.rules = []
+        else:
+            # Set group membership for rules
+            for rule in rules:
+                rule.set_group(self)
+                self.rules.append(rule)
 
     def add_rule(self, rule):
         """
@@ -215,7 +214,7 @@ class SRule(object):
     """
     _ids = count(0)
 
-    def __init__(self, port=None, port_from=None, port_to=None, groups=[], protocol='tcp', cidr=None):
+    def __init__(self, port=None, port_from=None, port_to=None, groups=None, protocol='tcp', cidr=None):
         """
         Initialize variables
         """
