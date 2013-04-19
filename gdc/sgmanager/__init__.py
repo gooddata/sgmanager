@@ -5,11 +5,33 @@
 import os
 import boto
 import yaml
-from gdc.sgmanager.exceptions import *
+from gdc.sgmanager.exceptions import InvalidConfiguration
 from itertools import count
 
-# TODO: diff local and remote groups and their rules
 # TODO: apply differences
+# TODO: logging
+
+class CachedMethod(object):
+    """
+    Decorator for caching of function results
+    """
+    def __init__ (self, function):
+        self.function = function
+        self.mem = {}
+
+    def __call__ (self, *args, **kwargs):
+        if kwargs.has_key('cached') and kwargs['cached'] == True:
+            if (args, str(kwargs)) in self.mem:
+                return self.mem[args, str(kwargs)]
+
+        tmp = self.function(*args, **kwargs)
+        self.mem[args, str(kwargs)] = tmp
+        return tmp
+
+    def __get__(self, obj, objtype):
+        """ Support instance methods """
+        import functools
+        return functools.partial(self.__call__, obj)
 
 class SGManager(object):
     def __init__(self, **kwargs):
@@ -128,9 +150,15 @@ class SecurityGroups(object):
             with open(config, 'r') as fp:
                 conf = yaml.load(fp)
         except IOError as e:
+            # Error while loading file
             raise InvalidConfiguration("Can't read config file %s: %s" % (config, e))
-        except Exception as e:
-            raise InvalidConfiguration("Can't parse config file %s: %s" % (config, e))
+        except yaml.YAMLError as e:
+            # Error while parsing YAML
+            if hasattr(e, 'problem_mark'):
+                mark = e.problem_mark
+                raise InvalidConfiguration("Can't parse config file %s: error at line %s, column %s" % (config, mark.line+1, mark.column+1))
+            else:
+                raise InvalidConfiguration("Can't parse config file %s: %s" % (config, e))
 
         for name, group in conf.iteritems():
             # Initialize SGroup object
@@ -164,6 +192,64 @@ class SecurityGroups(object):
         :rtype : basestring
         """
         return yaml.dump({ name : group.dump() for name, group in self.groups.iteritems() }, Dumper=YamlDumper)
+
+    def has_group(self, name):
+        if self.groups.has_key(name):
+            return True
+        else:
+            return False
+
+    def __eq__(self, other):
+        """
+        Equal matching, just call self.compare and return boolean
+        """
+        added, removed, updated, unchanged = self.compare(other)
+        if added or removed or updated:
+            return False
+        else:
+            return True
+
+    def __ne__(self, other):
+        """
+        Not equal matching, call __eq__ but reverse output
+        """
+        return not self.__eq__(other)
+
+    @CachedMethod
+    def compare(self, other, cached=False):
+        """
+        Compare SecurityGroups objects
+
+        Return tuple of lists with SGroups objects (added, removed, updated, unchanged)
+        """
+        if not isinstance(other, SecurityGroups):
+            raise TypeError("Compared object must be instance of SecurityGroups, not %s" % type(other).__name__)
+
+        added = []
+        removed = []
+        updated = []
+        unchanged = []
+
+        for name, group in self.groups.iteritems():
+            # Group doesn't exist in target SecurityGroups object
+            if not other.has_group(name):
+                added.append(group)
+                continue
+
+            # Compare matched group
+            if group != other.groups[name]:
+                # Differs - update
+                updated.append(group)
+            else:
+                # Group is same as other one - unchanged
+                unchanged.append(group)
+
+        # Check if some groups shouldn't be removed
+        for name, group in other.groups.iteritems():
+            if not self.has_group(name):
+                removed.append(group)
+
+        return added, removed, updated, unchanged
 
 
 class YamlDumper(yaml.SafeDumper):
@@ -207,6 +293,74 @@ class SGroup(object):
             'rules'  : [ rule.dump() for rule in self.rules ],
         }
 
+    def __eq__(self, other):
+        """
+        Equal matching, just call self.compare and return boolean
+        """
+        result = self.compare(other)
+        if result is False:
+            return False
+
+        added, removed, unchanged = result
+
+        if added or removed:
+            return False
+        else:
+            return True
+
+    def __ne__(self, other):
+        """
+        Not equal matching, call __eq__ but reverse output
+        """
+        return not self.__eq__(other)
+
+    @CachedMethod
+    def compare(self, other, cached=False):
+        """
+        Compare SGroup objects
+
+        Return tuple of lists with SGroups objects (added, removed, unchanged).
+        If name of groups doesn't match, return False
+        """
+        if not isinstance(other, SGroup):
+            raise TypeError("Compared object must be instance of SecurityGroups, not %s" % type(other).__name__)
+
+        if self.name != other.name:
+            return False
+
+        added = []
+        removed = []
+        unchanged = []
+
+        # Compare our rules with other ones and find which needs to be added
+        for rule in self.rules:
+            found = False
+            for rule_other in other.rules:
+                if rule == rule_other:
+                    # Found matching rule - unchanged
+                    unchanged.append(rule)
+                    found = True
+                    break
+            # Rule not found - need to be added
+            if not found:
+                added.append(rule)
+
+        # Compare other rules with our ones and find which needs to be removed
+        for rule_other in self.rules:
+            found = False
+            for rule in self.rules:
+                if rule_other == rule:
+                    found = True
+                    break
+            # Rule not found - need to be removed from target group
+            if not found:
+                removed.append(rule_other)
+
+        return added, removed, unchanged
+
+    def __repr__(self):
+        return '<SGroup %s>' % self.name
+
 
 class SRule(object):
     """
@@ -226,6 +380,14 @@ class SRule(object):
         self.port = port
         self.port_from = port_from
         self.port_to = port_to
+
+        # All ports allowed but only port_to supplied -> complete port range by setting port_from
+        if not self.port_from and self.port_to:
+            self.port_from = 1
+
+        # Single port can't be supplied together with port range
+        if self.port and self.port_from and self.port_to:
+            raise InvalidConfiguration('Single port and port range supplied for rule %s' % self.name)
 
         self.groups = []
         self.group = None
@@ -294,3 +456,40 @@ class SRule(object):
                 result[attr] = getattr(self, attr)
 
         return result
+
+    def __ne__(self, other):
+        """
+        Not equal matching, call __eq__ but reverse output
+        """
+        return not self.__eq__(other)
+
+    def __eq__(self, other):
+        """
+        Compare SRule objects
+        """
+        if not isinstance(other, SRule):
+            raise TypeError("Compared object must be instance of SRule, not %s" % type(other).__name__)
+
+        match = True
+
+        # Match common attributes
+        for attr in ['protocol', 'port', 'port_to', 'port_from']:
+            if getattr(self, attr) != getattr(other, attr):
+                # TODO: lg.debug
+                # print "Attribute %s doesn't match for group %s, rule %s: %s != %s" % (attr, self.group.name, self.name, getattr(self, attr), getattr(other, attr))
+                match = False
+                break
+
+        # Match groups (names only)
+        group_names = [ group['name'] for group in self.groups ].sort()
+        group_names_other = [ group['name'] for group in other.groups ].sort()
+
+        if group_names != group_names_other:
+            # TODO: lg.debug
+            # print "Groups doesn't match for group %s, rule %s: (%s) != (%s)" % (self.group.name, self.name, ','.join(group_names), ','.join(group_names_other))
+            match = False
+
+        return match
+
+    def __repr__(self):
+        return '<SRule %s of group %s>' % (self.name, self.group.name)
