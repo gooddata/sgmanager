@@ -7,9 +7,12 @@ import boto
 import yaml
 from gdc.sgmanager.exceptions import InvalidConfiguration
 from itertools import count
+import logging
 
-# TODO: apply differences
-# TODO: logging
+global ec2
+
+# Logging should be initialized by cli
+lg = logging.getLogger('gdc.sgmanager')
 
 class CachedMethod(object):
     """
@@ -40,7 +43,8 @@ class SGManager(object):
         :param config: path to configuration file
         :param kwargs: parameters for boto.connect_ec2()
         """
-        self.ec2 = boto.connect_ec2(**kwargs)
+        global ec2
+        ec2 = boto.connect_ec2(**kwargs)
 
         self.remote = None
         self.local  = None
@@ -53,7 +57,7 @@ class SGManager(object):
 
         :rtype : object
         """
-        self.remote = SecurityGroups(self.ec2)
+        self.remote = SecurityGroups()
         self.remote.load_remote_groups()
         return self.remote
 
@@ -65,7 +69,7 @@ class SGManager(object):
         :param config: configuration file path
         :rtype : object
         """
-        self.local = SecurityGroups(self.ec2)
+        self.local = SecurityGroups()
         self.local.load_local_groups(config)
         return self.local
 
@@ -81,13 +85,41 @@ class SGManager(object):
         """
         return self.local.dump_groups()
 
+    def apply_diff(self, remove_groups=True, remove_rules=True, dry=False):
+        """
+        Apply diff between local and remote groups
+        """
+        # Diff groups
+        sg_added, sg_removed, sg_updated, sg_unchanged = self.local.compare(self.remote)
+
+        # Create new groups
+        for group in sg_added:
+            group.create_group(dry)
+
+        # Update groups (create / remove rules)
+        for group in sg_updated:
+            added, removed, unchanged = group.compare(self.remote.groups[group.name])
+
+            # Add new rules
+            for rule in added:
+                rule.add_rule(dry)
+
+            # Remove old rules
+            if remove_rules is True:
+                for rule in removed:
+                    rule.remove_rule(dry)
+
+        # Delete groups
+        # This should be done at last to avoid between group relations
+        if remove_groups is True:
+            for group in sg_removed:
+                group.remove_group(dry)
+
 class SecurityGroups(object):
-    def __init__(self, ec2):
+    def __init__(self):
         """
         Create instance, save ec2 connection
-        :param ec2: boto.ec2.EC2Connection
         """
-        self.ec2 = ec2
         self.groups = {}
         self.config = None
 
@@ -97,16 +129,17 @@ class SecurityGroups(object):
         Convert boto.ec2.securitygroup objects into unified structure
         :rtype : list
         """
-        groups = self.ec2.get_all_security_groups()
+        groups = ec2.get_all_security_groups()
         for group in groups:
             # Initialize SGroup object
-            sgroup = SGroup(str(group.name), str(group.description))
+            sgroup = SGroup(str(group.name), str(group.description), sgroup_object=group)
 
             # For each rule in group
             for rule in group.rules:
                 rule_info = {
                     'protocol'  : str(rule.ip_protocol),
                     'groups' : [],
+                    'srule_object' : rule,
                 }
 
                 if rule.from_port != rule.to_port:
@@ -164,11 +197,12 @@ class SecurityGroups(object):
             # Initialize SGroup object
             sgroup = SGroup(name, None if not group.has_key('description') else group['description'])
 
-            for rule in group['rules']:
-                # Initialize SRule object
-                srule = SRule(**rule)
-                # Add it into group
-                sgroup.add_rule(srule)
+            if group.has_key('rules'):
+                for rule in group['rules']:
+                    # Initialize SRule object
+                    srule = SRule(**rule)
+                    # Add it into group
+                    sgroup.add_rule(srule)
 
             self.groups[name] = sgroup
 
@@ -264,9 +298,10 @@ class SGroup(object):
     """
     Single security group and it's rules
     """
-    def __init__(self, name=None, description=None, rules=None):
+    def __init__(self, name=None, description=None, rules=None, sgroup_object=None):
         self.name = name
         self.description = description
+        self.object = sgroup_object
 
         if not rules:
             self.rules = []
@@ -346,7 +381,7 @@ class SGroup(object):
                 added.append(rule)
 
         # Compare other rules with our ones and find which needs to be removed
-        for rule_other in self.rules:
+        for rule_other in other.rules:
             found = False
             for rule in self.rules:
                 if rule_other == rule:
@@ -361,6 +396,32 @@ class SGroup(object):
     def __repr__(self):
         return '<SGroup %s>' % self.name
 
+    def create_group(self, dry=False):
+        """
+        Create security group and all rules
+        """
+        lg.info('Adding group %s' % self.name)
+        if not dry:
+            ec2.create_security_group(self.name, self.description)
+
+        # Add rules
+        for rule in self.rules:
+            rule.add_rule(dry)
+
+    def remove_group(self, dry=False):
+        """
+        Remove security group
+        """
+        # Remove rules
+        for rule in self.rules:
+            lg.info("Removing rule %s from group %s" % (rule.name, self.name))
+            if not dry:
+                rule.remove_rule()
+
+        lg.info('Removing group %s' % self.name)
+        if not dry:
+            self.object.delete()
+
 
 class SRule(object):
     """
@@ -368,13 +429,13 @@ class SRule(object):
     """
     _ids = count(0)
 
-    def __init__(self, port=None, port_from=None, port_to=None, groups=None, protocol='tcp', cidr=None):
+    def __init__(self, port=None, port_from=None, port_to=None, groups=None, protocol='tcp', cidr=None, srule_object=None):
         """
         Initialize variables
         """
         # Set rule id
         self._ids = self._ids.next()
-        self.name = self._ids
+        self.object = srule_object
 
         self.protocol = protocol
         self.port = port
@@ -387,7 +448,7 @@ class SRule(object):
 
         # Single port can't be supplied together with port range
         if self.port and self.port_from and self.port_to:
-            raise InvalidConfiguration('Single port and port range supplied for rule %s' % self.name)
+            raise InvalidConfiguration('Single port and port range supplied for rule %s' % self._ids)
 
         self.groups = []
         self.group = None
@@ -395,7 +456,7 @@ class SRule(object):
         # Check validity of groups parameter
         if groups:
             if not isinstance(groups, list):
-                raise InvalidConfiguration('Parameter groups should be list of allowed security groups for rule %s' % self.name)
+                raise InvalidConfiguration('Parameter groups should be list of allowed security groups for rule %s' % self._ids)
 
             # Unify format for granted group permissions
             # it has to contain id and group owner (account id)
@@ -421,6 +482,38 @@ class SRule(object):
                 self.cidr = cidr
 
         self._check_configuration()
+        self.name = self._generate_name()
+
+    def _generate_name(self):
+        """
+        Generate human-readable name for rule
+        """
+        params = [
+            'proto=%s' % self.protocol,
+        ]
+
+        if self.cidr and self.cidr[0] != '0.0.0.0/0':
+            # TODO: does EC2 even support granting access to multiple cidrs at once? For now, use single one.
+            params.append('cidr=%s' % self.cidr[0])
+
+        if self.port:
+            # We have single port
+            params.append('port=%s' % self.port)
+        elif self.port_from and self.port_to:
+            # We have port range
+            params.append('port=%s:%s' % (self.port_from, self.port_to))
+
+        if self.groups:
+            # Add group parameter
+            # TODO: does EC2 even support granting access to multiple groups at once? For now, use single one.
+            group = self.groups[0]
+            params.append('name=%s' % group['name'])
+
+            # Do we have owner id?
+            if group['owner']:
+                params.append('owner=%s' % group['owner'])
+
+        return '<%s>' % ','.join(params)
 
     def set_group(self, group):
         """
@@ -475,8 +568,6 @@ class SRule(object):
         # Match common attributes
         for attr in ['protocol', 'port', 'port_to', 'port_from']:
             if getattr(self, attr) != getattr(other, attr):
-                # TODO: lg.debug
-                # print "Attribute %s doesn't match for group %s, rule %s: %s != %s" % (attr, self.group.name, self.name, getattr(self, attr), getattr(other, attr))
                 match = False
                 break
 
@@ -485,11 +576,60 @@ class SRule(object):
         group_names_other = [ group['name'] for group in other.groups ].sort()
 
         if group_names != group_names_other:
-            # TODO: lg.debug
-            # print "Groups doesn't match for group %s, rule %s: (%s) != (%s)" % (self.group.name, self.name, ','.join(group_names), ','.join(group_names_other))
             match = False
 
         return match
 
     def __repr__(self):
         return '<SRule %s of group %s>' % (self.name, self.group.name)
+
+    def add_rule(self, dry=False):
+        """
+        Add rule into security group
+        """
+        lg.info('Adding rule %s into group %s' % (self.name, self.group.name))
+
+        if not dry:
+            ec2.authorize_security_group(**self._get_boto_params())
+
+    def remove_rule(self, dry=False):
+        """
+        Revoke rule
+        """
+        lg.info('Removing rule %s from group %s' % (self.name, self.group.name))
+        if not dry:
+            ec2.revoke_security_group(**self._get_boto_params())
+
+    def _get_boto_params(self):
+        """
+        Get parameters for boto
+        """
+        params = {
+            'group_name' : self.group.name,
+            'ip_protocol':  self.protocol,
+        }
+
+        if self.cidr:
+            # TODO: does EC2 even support granting access to multiple cidrs at once? For now, use single one.
+            params['cidr_ip'] = self.cidr[0]
+
+        if self.port:
+            # We have single port
+            params['to_port'] = self.port
+            params['from_port'] = self.port
+        elif self.port_from and self.port_to:
+            # We have port range
+            params['from_port'] = self.port_from
+            params['to_port'] = self.port_to
+
+        if self.groups:
+            # Add group parameter
+            # TODO: does EC2 even support granting access to multiple groups at once? For now, use single one.
+            group = self.groups[0]
+            params['src_security_group_name'] = group['name']
+
+            # Do we have owner id?
+            if group['owner']:
+                params['src_security_group_owner_id'] = group['owner']
+
+        return params
