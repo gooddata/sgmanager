@@ -36,6 +36,7 @@ class CachedMethod(object):
         import functools
         return functools.partial(self.__call__, obj)
 
+
 class SGManager(object):
     def __init__(self, **kwargs):
         """
@@ -93,8 +94,13 @@ class SGManager(object):
         sg_added, sg_removed, sg_updated, sg_unchanged = self.local.compare(self.remote)
 
         # Create new groups
+        # Firstly create all groups, then add all rules (to satisfy between group relations)
         for group in sg_added:
-            group.create_group(dry)
+            group.create_group(dry, no_rules=True)
+
+        for group in sg_added:
+            for rule in group.rules:
+                rule.add_rule(dry)
 
         # Update groups (create / remove rules)
         for group in sg_updated:
@@ -396,7 +402,7 @@ class SGroup(object):
     def __repr__(self):
         return '<SGroup %s>' % self.name
 
-    def create_group(self, dry=False):
+    def create_group(self, dry=False, no_rules=False):
         """
         Create security group and all rules
         """
@@ -405,8 +411,9 @@ class SGroup(object):
             ec2.create_security_group(self.name, self.description)
 
         # Add rules
-        for rule in self.rules:
-            rule.add_rule(dry)
+        if not no_rules:
+            for rule in self.rules:
+                rule.add_rule(dry)
 
     def remove_group(self, dry=False):
         """
