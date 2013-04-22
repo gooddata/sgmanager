@@ -6,11 +6,15 @@ Load local configuration, load remote groups and apply differences.
 ## Installation
 With PIP:
 
-	pip install -e git://github.com/gooddata/sgmanager.git#egg=sgmanager
+	pip install -e 'git://github.com/gooddata/sgmanager.git#egg=sgmanager'
 
-Or directly:
+Or from local GIT checkout:
 
 	python setup.py install
+
+Or you can run execution script from checkouted root directory without installation:
+
+	./bin/sgmanager.py
 
 ## Usage
 First setup *EC2\_ACCESS\_KEY* and *EC2\_SECRET\_KEY* environment variables. You can also set *EC2\_URL* to connect to custom EC2 endpoint (eg. OpenStack).
