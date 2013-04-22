@@ -7,7 +7,7 @@ from distutils.core import setup
 setup(
     name='sgmanager',
     version='1.0',
-    packages=['gdc', 'gdc.logger', 'gdc.sgmanager'],
+    packages=['gdc', 'gdc.logger', 'gdc.sgmanager', 'gdc.sgmanager.securitygroups'],
     scripts=['bin/sgmanager.py'],
     url='https://github.com/gooddata/sgmanager',
     license='BSD',
