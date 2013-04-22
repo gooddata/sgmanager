@@ -1,9 +1,8 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Copyright (C) 2007-2013, GoodData(R) Corporation. All rights reserved
 
 import os
-import boto
+import boto.ec2
 import yaml
 from gdc.sgmanager.exceptions import InvalidConfiguration
 from itertools import count
@@ -13,6 +12,7 @@ global ec2
 
 # Logging should be initialized by cli
 lg = logging.getLogger('gdc.sgmanager')
+
 
 class CachedMethod(object):
     """
@@ -38,14 +38,24 @@ class CachedMethod(object):
 
 
 class SGManager(object):
-    def __init__(self, **kwargs):
+    def __init__(self, ec2_connection=None):
         """
         Connect to EC2
         :param config: path to configuration file
         :param kwargs: parameters for boto.connect_ec2()
         """
         global ec2
-        ec2 = boto.connect_ec2(**kwargs)
+
+        if not ec2_connection:
+            # Use supplied connection
+            try:
+                ec2 = boto.connect_ec2()
+            except boto.exception.NoAuthHandlerFound as e:
+                e.friendly = True
+                raise
+        else:
+            # Try to connect on our own
+            ec2 = ec2_connection
 
         self.remote = None
         self.local  = None
@@ -421,7 +431,6 @@ class SGroup(object):
         """
         # Remove rules
         for rule in self.rules:
-            lg.info("Removing rule %s from group %s" % (rule.name, self.name))
             if not dry:
                 rule.remove_rule()
 

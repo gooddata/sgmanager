@@ -1,10 +1,12 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Copyright (C) 2007-2013, GoodData(R) Corporation. All rights reserved
 
 import sys
+import os
 import argparse
 import logging
+import boto
+from urlparse import urlparse
 from gdc.sgmanager import SGManager
 import gdc.logger
 lg = gdc.logger.init(syslog=False)
@@ -21,6 +23,10 @@ def main():
     parser.add_argument('-d', '--debug', action='store_true', help='Debug mode')
     parser.add_argument('--no-remove', action='store_true', help='Do not remove any groups or rules, only add')
     parser.add_argument('--no-remove-groups', action='store_true', help='Do not remove any groups, only add')
+    parser.add_argument('--ec2-access-key', help='EC2 Access Key to use')
+    parser.add_argument('--ec2-secret-key', help='EC2 Secret Key to use')
+    parser.add_argument('--ec2-region', help='Region to use (default us-east-1)', default='us-east-1')
+    parser.add_argument('--ec2-url', help='EC2 API URL to use (otherwise use default)')
     args = parser.parse_args()
 
     if args.quiet:
@@ -31,7 +37,9 @@ def main():
     if args.debug:
         lg.setLevel(logging.DEBUG)
 
-    manager = SGManager()
+    # Initialize SGManager
+    ec2 = connect_ec2(args)
+    manager = SGManager(ec2)
     manager.load_remote_groups()
 
     if args.dump:
@@ -53,3 +61,51 @@ def main():
     }
 
     manager.apply_diff(**params)
+
+def connect_ec2(args):
+    """
+    Connect to EC2 API by supplied arguments.
+    Return EC2 connection object.
+    """
+    # Prepare EC2 connection parameters
+    if not args.ec2_access_key:
+        if os.getenv('EC2_ACCESS_KEY'):
+            args.ec2_access_key = os.getenv('EC2_ACCESS_KEY')
+        elif os.getenv('AWS_ACCESS_KEY'):
+            args.ec2_access_key = os.getenv('AWS_ACCESS_KEY')
+        else:
+            lg.error("EC2 Access Key not supplied. Use EC2_ACCESS_KEY or AWS_ACCESS_KEY environment variables or command line option")
+            sys.exit(1)
+
+    if not args.ec2_secret_key:
+        if os.getenv('EC2_SECRET_KEY'):
+            args.ec2_secret_key = os.getenv('EC2_SECRET_KEY')
+        elif os.getenv('AWS_SECRET_KEY'):
+            args.ec2_secret_key = os.getenv('AWS_SECRET_KEY')
+        else:
+            lg.error("EC2 Secret Key not supplied. Use EC2_SECRET_KEY or AWS_SECRET_KEY environment variables or command line option")
+            sys.exit(1)
+
+    if not args.ec2_url:
+        if os.getenv('EC2_URL'):
+            args.ec2_url = os.getenv('EC2_URL')
+
+    # Connect to EC2
+    if args.ec2_url:
+        # Special connection to EC2-compatible API (eg. OpenStack)
+        ec2_url_parsed = urlparse(args.ec2_url)
+        is_secure = False if ec2_url_parsed.scheme == "http" else True
+
+        region = boto.ec2.regioninfo.RegionInfo(name=args.ec2_region,endpoint=ec2_url_parsed.netloc)
+        ec2 = boto.connect_ec2(aws_access_key_id=args.ec2_access_key,\
+                               aws_secret_access_key=args.ec2_secret_key,\
+                               is_secure=is_secure,\
+                               region=region,\
+                               path=ec2_url_parsed.path)
+    else:
+        # Standard connection to AWS EC2
+        ec2 = boto.ec2.connect_to_region(args.ec2_region,\
+                                         aws_access_key_id=args.ec2_access_key,\
+                                         aws_secret_access_key=args.ec2_secret_key)
+
+    return ec2
