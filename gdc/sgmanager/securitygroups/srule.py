@@ -134,9 +134,13 @@ class SRule(object):
         """
         result = {}
 
-        for attr in ['protocol', 'port', 'port_to', 'port_from', 'groups']:
+        for attr in ['protocol', 'port', 'port_to', 'port_from', 'cidr', 'groups']:
             if getattr(self, attr):
-                result[attr] = getattr(self, attr)
+                if attr == 'cidr' and getattr(self, attr)[0] == '0.0.0.0/0':
+                    # Skip global cidr which is the default
+                    continue
+                else:
+                    result[attr] = getattr(self, attr)
 
         return result
 
