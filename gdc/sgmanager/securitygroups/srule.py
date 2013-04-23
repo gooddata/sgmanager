@@ -61,10 +61,14 @@ class SRule(object):
                 else:
                     self.groups.append(group)
 
-        # Allow all if we haven't chosen groups or cidr
-        if not cidr and not groups:
+        # cidr should be None if we have groups
+        if groups:
+            self.cidr = None
+        elif not cidr:
+            # No cidr, no groups, allowed from everywhere
             self.cidr = ['0.0.0.0/0']
         else:
+            # We have cidr and no groups, unify structure
             # convert string cidr to list
             if cidr and not isinstance(cidr, list):
                 self.cidr = [ self.cidr ]
@@ -160,7 +164,7 @@ class SRule(object):
         match = True
 
         # Match common attributes
-        for attr in ['protocol', 'port', 'port_to', 'port_from']:
+        for attr in ['protocol', 'port', 'port_to', 'port_from', 'cidr']:
             if getattr(self, attr) != getattr(other, attr):
                 match = False
                 break
