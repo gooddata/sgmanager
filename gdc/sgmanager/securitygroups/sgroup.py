@@ -33,6 +33,8 @@ class SGroup(object):
                 rule.set_group(self)
                 self.rules.append(rule)
 
+        lg.debug("Initialized group %s" % self.name)
+
     def add_rule(self, rule):
         """
         Add new rule
@@ -95,11 +97,13 @@ class SGroup(object):
             for rule_other in other.rules:
                 if rule == rule_other:
                     # Found matching rule - unchanged
+                    lg.debug('Rule %s matched remote rule %s' % (rule.name, rule_other.name))
                     unchanged.append(rule)
                     found = True
                     break
             # Rule not found - need to be added
             if not found:
+                lg.debug("Rule %s haven't matched and should be added" % rule.name)
                 added.append(rule)
 
         # Compare other rules with our ones and find which needs to be removed

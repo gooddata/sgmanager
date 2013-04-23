@@ -46,7 +46,8 @@ class SRule(object):
         # Check validity of groups parameter
         if groups:
             if not isinstance(groups, list):
-                raise InvalidConfiguration('Parameter groups should be list of allowed security groups for rule %s' % self._ids)
+                # Convert to list so it can be full dict structure or simple group name
+                groups = [ groups ]
 
             # Unify format for granted group permissions
             # it has to contain id and group owner (account id)
@@ -71,12 +72,14 @@ class SRule(object):
             # We have cidr and no groups, unify structure
             # convert string cidr to list
             if cidr and not isinstance(cidr, list):
-                self.cidr = [ self.cidr ]
+                self.cidr = [ cidr ]
             else:
                 self.cidr = cidr
 
         self._check_configuration()
         self.name = self._generate_name()
+
+        lg.debug('Loaded rule %s' % self.name)
 
     def _generate_name(self):
         """
@@ -161,22 +164,20 @@ class SRule(object):
         if not isinstance(other, SRule):
             raise TypeError("Compared object must be instance of SRule, not %s" % type(other).__name__)
 
-        match = True
-
         # Match common attributes
         for attr in ['protocol', 'port', 'port_to', 'port_from', 'cidr']:
             if getattr(self, attr) != getattr(other, attr):
-                match = False
-                break
+                return False
 
-        # Match groups (names only)
-        group_names = [ group['name'] for group in self.groups ].sort()
-        group_names_other = [ group['name'] for group in other.groups ].sort()
+        # Match groups (names and owner only)
+        for group in self.groups:
+            for group_other in other.groups:
+                if group['name'] != group_other['name']:
+                    return False
+                if group['owner'] != group_other['owner']:
+                    return False
 
-        if group_names != group_names_other:
-            match = False
-
-        return match
+        return True
 
     def __repr__(self):
         return '<SRule %s of group %s>' % (self.name, self.group.name)

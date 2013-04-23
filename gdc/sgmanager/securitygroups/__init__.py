@@ -3,6 +3,7 @@
 
 import os
 import yaml
+import logging
 
 import gdc.sgmanager
 from gdc.sgmanager.decorators import CachedMethod
@@ -10,6 +11,8 @@ from gdc.sgmanager.exceptions import InvalidConfiguration
 
 from gdc.sgmanager.securitygroups.sgroup import SGroup
 from gdc.sgmanager.securitygroups.srule import SRule
+
+lg = logging.getLogger('gdc.sgmanager')
 
 
 class SecurityGroups(object):
@@ -29,6 +32,7 @@ class SecurityGroups(object):
         Convert boto.ec2.securitygroup objects into unified structure
         :rtype : list
         """
+        lg.debug("Loading remote groups")
         groups = ec2.get_all_security_groups()
         for group in groups:
             # Initialize SGroup object
@@ -38,7 +42,6 @@ class SecurityGroups(object):
             for rule in group.rules:
                 rule_info = {
                     'protocol'  : str(rule.ip_protocol),
-                    'groups' : [],
                     'srule_object' : rule,
                 }
 
@@ -50,19 +53,19 @@ class SecurityGroups(object):
                     # We have single port, use port parameter
                     rule_info['port'] = int(rule.to_port)
 
-                # For each granted permission
-                for grant in rule.grants:
-                    try:
-                        rule_info['groups'].append({
+                if rule.grants:
+                    for grant in rule.grants:
+                        # For each granted permission, add new SRule
+                        try:
+                            srule = SRule(groups={
                                 'name'  : str(grant.groupName),
                                 'owner' : str(grant.owner_id),
                                 'id'    : str(grant.groupId)
-                            })
-                    except AttributeError:
-                        rule_info['cidr'] = [ str(grant.cidr_ip) ]
+                            }, **rule_info)
+                        except AttributeError:
+                            srule = SRule(cidr=[ str(grant.cidr_ip) ], **rule_info)
 
-                srule = SRule(**rule_info)
-                sgroup.add_rule(srule)
+                        sgroup.add_rule(srule)
 
             self.groups[sgroup.name] = sgroup
 
@@ -93,16 +96,25 @@ class SecurityGroups(object):
             else:
                 raise InvalidConfiguration("Can't parse config file %s: %s" % (config, e))
 
+        lg.debug("Loading local groups")
         for name, group in conf.iteritems():
             # Initialize SGroup object
             sgroup = SGroup(name, None if not group.has_key('description') else group['description'])
 
             if group.has_key('rules'):
                 for rule in group['rules']:
-                    # Initialize SRule object
-                    srule = SRule(**rule)
-                    # Add it into group
-                    sgroup.add_rule(srule)
+                    if rule.has_key('groups'):
+                        # For each group, create separate rule
+                        # multiple groups are used only to simplify configuration
+                        for group in rule['groups']:
+                            rule['groups'] = [ group ]
+                            srule = SRule(**rule)
+                            sgroup.add_rule(srule)
+                    else:
+                        # No groups, initialize SRule object
+                        srule = SRule(**rule)
+                        # Add it into group
+                        sgroup.add_rule(srule)
 
             self.groups[name] = sgroup
 
