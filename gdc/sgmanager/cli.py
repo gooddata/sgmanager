@@ -15,6 +15,24 @@ def main():
     """
     Main entrance
     """
+    try:
+        cli()
+    except (KeyboardInterrupt, SystemExit):
+        # User interruption
+        sys.exit(1)
+    except Exception as e:
+        if getattr(e, 'friendly', False):
+            # Friendly exceptions - just log and exit
+            lg.error(e)
+            sys.exit(1)
+        else:
+            # Evil exceptions, print stack trace
+            raise
+
+def cli():
+    """
+    Main CLI entrance
+    """
     parser = argparse.ArgumentParser(description='Security groups management tool')
     parser.add_argument('-c', '--config', help='Config file to use')
     parser.add_argument('--dump', action='store_true', help='Dump remote groups and exit')

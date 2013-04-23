@@ -9,7 +9,7 @@ setup(
     version='1.0',
     packages=['gdc', 'gdc.logger', 'gdc.sgmanager', 'gdc.sgmanager.securitygroups'],
     entry_points = {
-        'console_scripts': [ 'sgmanager = gdc.sgmanager.__main__' ]
+        'console_scripts': [ 'sgmanager = gdc.sgmanager.cli:main' ]
     },
     url='https://github.com/gooddata/sgmanager',
     license='BSD',
