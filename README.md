@@ -12,9 +12,12 @@ Or from local GIT checkout:
 
 	python setup.py install
 
+Then you can run it by *sgmanager* command, ensure that you have python bin in your $PATH, eg:
+/opt/local/Library/Frameworks/Python.framework/Versions/2.7/bin
+
 Or you can run execution script from checkouted root directory without installation:
 
-	./bin/sgmanager.py
+	python gdc/sgmanager
 
 ## Usage
 First setup *EC2\_ACCESS\_KEY* and *EC2\_SECRET\_KEY* environment variables. You can also set *EC2\_URL* to connect to custom EC2 endpoint (eg. OpenStack).

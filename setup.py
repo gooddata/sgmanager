@@ -2,13 +2,15 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2007-2013, GoodData(R) Corporation. All rights reserved
 
-from distutils.core import setup
+from setuptools import setup
 
 setup(
     name='sgmanager',
     version='1.0',
     packages=['gdc', 'gdc.logger', 'gdc.sgmanager', 'gdc.sgmanager.securitygroups'],
-    scripts=['bin/sgmanager.py'],
+    entry_points = {
+        'console_scripts': [ 'sgmanager = gdc.sgmanager.__main__' ]
+    },
     url='https://github.com/gooddata/sgmanager',
     license='BSD',
     author='Filip Pytloun',
