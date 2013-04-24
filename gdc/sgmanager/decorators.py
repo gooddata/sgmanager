@@ -11,7 +11,8 @@ class CachedMethod(object):
         self.mem = {}
 
     def __call__ (self, *args, **kwargs):
-        if kwargs.has_key('cached') and kwargs['cached'] == True:
+        cached = kwargs.pop('cached', True)
+        if cached is True:
             if (args, str(kwargs)) in self.mem:
                 return self.mem[args, str(kwargs)]
 

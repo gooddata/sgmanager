@@ -9,7 +9,8 @@ import boto
 from urlparse import urlparse
 from gdc.sgmanager import SGManager
 import gdc.logger
-lg = gdc.logger.init(syslog=False)
+gdc.logger.init(syslog=False)
+lg = logging.getLogger('gdc.sgmanager')
 
 def main():
     """
@@ -115,15 +116,15 @@ def connect_ec2(args):
         is_secure = False if ec2_url_parsed.scheme == "http" else True
 
         region = boto.ec2.regioninfo.RegionInfo(name=args.ec2_region, endpoint=ec2_url_parsed.netloc)
-        ec2 = boto.connect_ec2(aws_access_key_id=args.ec2_access_key,\
-                               aws_secret_access_key=args.ec2_secret_key,\
-                               is_secure=is_secure,\
-                               region=region,\
+        ec2 = boto.connect_ec2(aws_access_key_id=args.ec2_access_key,
+                               aws_secret_access_key=args.ec2_secret_key,
+                               is_secure=is_secure,
+                               region=region,
                                path=ec2_url_parsed.path)
     else:
         # Standard connection to AWS EC2
-        ec2 = boto.ec2.connect_to_region(args.ec2_region,\
-                                         aws_access_key_id=args.ec2_access_key,\
+        ec2 = boto.ec2.connect_to_region(args.ec2_region,
+                                         aws_access_key_id=args.ec2_access_key,
                                          aws_secret_access_key=args.ec2_secret_key)
 
     return ec2

@@ -7,7 +7,7 @@ from itertools import count
 from gdc.sgmanager.exceptions import InvalidConfiguration
 
 # Logging should be initialized by cli
-lg = logging.getLogger('gdc.sgmanager')
+lg = logging.getLogger(__name__)
 
 
 class SRule(object):

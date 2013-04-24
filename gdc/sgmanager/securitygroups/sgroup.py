@@ -7,7 +7,7 @@ from gdc.sgmanager.decorators import CachedMethod
 from gdc.sgmanager.securitygroups.srule import SRule
 
 # Logging should be initialized by cli
-lg = logging.getLogger('gdc.sgmanager')
+lg = logging.getLogger(__name__)
 
 
 class SGroup(object):
@@ -74,7 +74,7 @@ class SGroup(object):
         return not self.__eq__(other)
 
     @CachedMethod
-    def compare(self, other, cached=False):
+    def compare(self, other):
         """
         Compare SGroup objects
 

@@ -4,7 +4,6 @@
 import boto.ec2
 
 from gdc.sgmanager.exceptions import InvalidConfiguration
-from gdc.sgmanager.decorators import CachedMethod
 from gdc.sgmanager.securitygroups import SecurityGroups
 
 from gdc.sgmanager.securitygroups.srule import SRule
@@ -13,10 +12,9 @@ from gdc.sgmanager.securitygroups.sgroup import SGroup
 import logging
 
 global ec2
-global lg
 
 # Logging should be initialized by cli
-lg = logging.getLogger('gdc.sgmanager')
+lg = logging.getLogger(__name__)
 
 
 class SGManager(object):
