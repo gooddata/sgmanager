@@ -60,7 +60,8 @@ class SecurityGroups(object):
                             srule = SRule(groups={
                                 'name'  : str(grant.groupName),
                                 'owner' : str(grant.owner_id),
-                                'id'    : str(grant.groupId)
+                                # OpenStack doesn't support group IDs, use None if this attr isn't present
+                                'id'    : None if getattr(grant, 'groupId', None) is None else str(getattr(grant, 'groupId'))
                             }, **rule_info)
                         except AttributeError:
                             srule = SRule(cidr=[ str(grant.cidr_ip) ], **rule_info)
