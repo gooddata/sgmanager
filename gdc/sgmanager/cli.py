@@ -119,11 +119,14 @@ def connect_ec2(args):
         is_secure = False if ec2_url_parsed.scheme == "http" else True
 
         region = boto.ec2.regioninfo.RegionInfo(name=args.ec2_region, endpoint=ec2_url_parsed.netloc)
-
+        lg.debug("Connecting to host=%s, port=%s, path=%s, region=%s, SSL=%s" % (ec2_url_parsed.hostname, ec2_url_parsed.port, ec2_url_parsed.path, region.name, is_secure))
         ec2 = boto.connect_ec2(aws_access_key_id=args.ec2_access_key,
                                aws_secret_access_key=args.ec2_secret_key,
                                is_secure=is_secure,
                                region=region,
+                               host=ec2_url_parsed.hostname,
+                               # when I use port parameter, it will be duplicated for unknown reason
+                               # port=ec2_url_parsed.port,
                                path=ec2_url_parsed.path)
     else:
         # Standard connection to AWS EC2
