@@ -9,7 +9,7 @@ import boto
 from urlparse import urlparse
 from gdc.sgmanager import SGManager
 import gdc.logger
-gdc.logger.init(syslog=False)
+lg_root = gdc.logger.init(name='', syslog=False)
 lg = logging.getLogger('gdc.sgmanager')
 
 def main():
@@ -50,11 +50,14 @@ def cli():
 
     if args.quiet:
         lg.setLevel(logging.WARN)
+        lg_root.setLevel(logging.WARN)
     else:
         lg.setLevel(logging.INFO)
+        lg_root.setLevel(logging.INFO)
 
     if args.debug:
         lg.setLevel(logging.DEBUG)
+        lg_root.setLevel(logging.DEBUG)
 
     # Initialize SGManager
     ec2 = connect_ec2(args)
@@ -116,6 +119,7 @@ def connect_ec2(args):
         is_secure = False if ec2_url_parsed.scheme == "http" else True
 
         region = boto.ec2.regioninfo.RegionInfo(name=args.ec2_region, endpoint=ec2_url_parsed.netloc)
+
         ec2 = boto.connect_ec2(aws_access_key_id=args.ec2_access_key,
                                aws_secret_access_key=args.ec2_secret_key,
                                is_secure=is_secure,
