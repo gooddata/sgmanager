@@ -138,7 +138,7 @@ class SecurityGroups(object):
         Return YAML dump of loaded groups
         :rtype : basestring
         """
-        return yaml.dump({ name : group.dump() for name, group in self.groups.iteritems() }, Dumper=YamlDumper)
+        return yaml.dump( dict((name, group.dump()) for (name, group) in self.groups.iteritems() ), Dumper=YamlDumper)
 
     def has_group(self, name):
         if self.groups.has_key(name):
