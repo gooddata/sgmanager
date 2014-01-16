@@ -1,15 +1,12 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2007-2013, GoodData(R) Corporation. All rights reserved
 
-import boto.ec2
-
-from gdc.sgmanager.exceptions import InvalidConfiguration
-from gdc.sgmanager.securitygroups import SecurityGroups
-
-from gdc.sgmanager.securitygroups.srule import SRule
-from gdc.sgmanager.securitygroups.sgroup import SGroup
-
 import logging
+
+import boto.ec2
+from sgmanager.securitygroups import SecurityGroups
+
+from sgmanager.exceptions import InvalidConfiguration
 
 global ec2
 

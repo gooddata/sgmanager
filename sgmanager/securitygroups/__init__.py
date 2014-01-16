@@ -2,15 +2,17 @@
 # Copyright (C) 2007-2013, GoodData(R) Corporation. All rights reserved
 
 import os
-import yaml
 import logging
 
-import gdc.sgmanager
-from gdc.sgmanager.decorators import CachedMethod
-from gdc.sgmanager.exceptions import InvalidConfiguration
+import yaml
 
-from gdc.sgmanager.securitygroups.sgroup import SGroup
-from gdc.sgmanager.securitygroups.srule import SRule
+import sgmanager
+from sgmanager.decorators import CachedMethod
+from sgmanager.securitygroups.sgroup import SGroup
+from sgmanager.securitygroups.srule import SRule
+
+from sgmanager.exceptions import InvalidConfiguration
+
 
 lg = logging.getLogger(__name__)
 
@@ -21,7 +23,7 @@ class SecurityGroups(object):
         Create instance, save ec2 connection
         """
         global ec2
-        ec2 = gdc.sgmanager.ec2
+        ec2 = sgmanager.ec2
 
         self.groups = {}
         self.config = None
