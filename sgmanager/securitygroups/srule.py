@@ -2,9 +2,11 @@
 # Copyright (C) 2007-2013, GoodData(R) Corporation. All rights reserved
 
 import logging
-import gdc.sgmanager
 from itertools import count
-from gdc.sgmanager.exceptions import InvalidConfiguration
+
+import sgmanager
+from sgmanager.exceptions import InvalidConfiguration
+
 
 # Logging should be initialized by cli
 lg = logging.getLogger(__name__)
@@ -21,7 +23,7 @@ class SRule(object):
         Initialize variables
         """
         global ec2
-        ec2 = gdc.sgmanager.ec2
+        ec2 = sgmanager.ec2
 
         # Set rule id
         self._ids = self._ids.next()

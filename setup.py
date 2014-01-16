@@ -6,10 +6,10 @@ from setuptools import setup
 
 setup(
     name='sgmanager',
-    version='1.0',
-    packages=['gdc', 'gdc.logger', 'gdc.sgmanager', 'gdc.sgmanager.securitygroups'],
+    version='1.1',
+    packages=['sgmanager', 'sgmanager.logger', 'sgmanager.securitygroups'],
     entry_points = {
-        'console_scripts': [ 'sgmanager = gdc.sgmanager.cli:main' ]
+        'console_scripts': [ 'sgmanager = sgmanager.cli:main' ]
     },
     url='https://github.com/gooddata/sgmanager',
     license='BSD',

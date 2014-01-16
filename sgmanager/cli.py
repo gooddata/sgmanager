@@ -5,11 +5,14 @@ import sys
 import os
 import argparse
 import logging
-import boto
 from urlparse import urlparse
-from gdc.sgmanager import SGManager
-import gdc.logger
-lg_root = gdc.logger.init(name='', syslog=False)
+
+import boto
+
+from sgmanager import SGManager
+import sgmanager.logger
+
+lg_root = sgmanager.logger.init(name='', syslog=False)
 lg = logging.getLogger('gdc.sgmanager')
 
 def main():

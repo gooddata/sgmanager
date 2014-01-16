@@ -2,9 +2,9 @@
 # Copyright (C) 2007-2013, GoodData(R) Corporation. All rights reserved
 
 import logging
-import gdc.sgmanager
-from gdc.sgmanager.decorators import CachedMethod
-from gdc.sgmanager.securitygroups.srule import SRule
+import sgmanager
+from sgmanager.decorators import CachedMethod
+from sgmanager.securitygroups.srule import SRule
 
 # Logging should be initialized by cli
 lg = logging.getLogger(__name__)
@@ -19,7 +19,7 @@ class SGroup(object):
         Initialize variables
         """
         global ec2
-        ec2 = gdc.sgmanager.ec2
+        ec2 = sgmanager.ec2
 
         self.name = name
         self.description = description

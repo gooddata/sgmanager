@@ -20,12 +20,12 @@ lg = logging.getLogger('gdc.application')
 import logging
 import logging.handlers
 import socket
-from gdc.logger.level_handler import LevelHandler
+from sgmanager.logger.level_handler import LevelHandler
 
 lg = None
 
 # Initialize logging
-def init(name='gdc', level=logging.WARN, syslog=True, console=True):
+def init(name='', level=logging.WARN, syslog=True, console=True):
     global lg
 
     lg = logging.getLogger(name)
