@@ -4,9 +4,13 @@ Tooling for management of security groups.
 Load local configuration, load remote groups and apply differences.
 
 ## Installation
-With PIP:
+With PIP from Github:
 
 	pip install -e 'git://github.com/gooddata/sgmanager.git#egg=sgmanager'
+
+Or with PIP from Pypi:
+
+	pip install sgmanager
 
 Or from local GIT checkout:
 
