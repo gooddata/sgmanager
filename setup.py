@@ -11,10 +11,27 @@ setup(
     entry_points = {
         'console_scripts': [ 'sgmanager = sgmanager.cli:main' ]
     },
-    url='https://github.com/gooddata/sgmanager',
     license='BSD',
     author='Filip Pytloun',
     author_email='filip.pytloun@gooddata.com',
+    maintainer='Filip Pytloun',
+    maintainer_email='filip@pytloun.cz',
     description='Security Groups Management Tool',
+    long_description='Tooling for management of security groups. Load local configuration, load remote groups and apply differences.',
+    url='https://github.com/gooddata/sgmanager',
+    download_url='https://github.com/gooddata/sgmanager',
+    platform='POSIX',
+    classifiers=[
+        'Development Status :: 5 - Production/Stable',
+        'Environment :: Console',
+        'Intended Audience :: Developers',
+        'Intended Audience :: System Administrators',
+        'License :: OSI Approved :: BSD License',
+        'Natural Language :: English',
+        'Operating System :: POSIX',
+        'Topic :: System :: Networking :: Firewalls',
+        'Programming Language :: Python',
+        'Programming Language :: Python :: Implementation :: CPython',
+    ],
     requires=['boto', 'yaml', 'argparse']
 )
