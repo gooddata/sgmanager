@@ -49,6 +49,7 @@ def cli():
     parser.add_argument('-S', '--ec2-secret-key', help='EC2 Secret Key to use')
     parser.add_argument('-R', '--ec2-region', help='Region to use (default us-east-1)', default='us-east-1')
     parser.add_argument('-U', '--ec2-url', help='EC2 API URL to use (otherwise use default)')
+    parser.add_argument('-t', '--timeout', type=int, default=120, help='Set socket timeout (default 120s)')
     parser.add_argument('--insecure', action='store_true', help='Do not validate SSL certs')
     args = parser.parse_args()
 
@@ -115,6 +116,10 @@ def connect_ec2(args):
     if not args.ec2_url:
         if os.getenv('EC2_URL'):
             args.ec2_url = os.getenv('EC2_URL')
+
+    if args.timeout:
+        boto.config.add_section('Boto')
+        boto.config.set('Boto','http_socket_timeout', args.timeout)
 
     # Connect to EC2
     if args.ec2_url:
