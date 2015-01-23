@@ -33,5 +33,5 @@ setup(
         'Programming Language :: Python',
         'Programming Language :: Python :: Implementation :: CPython',
     ],
-    requires=['boto', 'yaml', 'argparse']
+    install_requires=['boto<2.35', 'PyYAML', 'argparse']
 )

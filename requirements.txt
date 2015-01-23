@@ -1,0 +1,3 @@
+PyYAML
+# Newer boto doesn't work with custom EC2 endpoints
+boto<2.35.0

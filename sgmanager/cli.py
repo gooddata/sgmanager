@@ -45,10 +45,11 @@ def cli():
     parser.add_argument('-d', '--debug', action='store_true', help='Debug mode')
     parser.add_argument('--no-remove', action='store_true', help='Do not remove any groups or rules, only add')
     parser.add_argument('--no-remove-groups', action='store_true', help='Do not remove any groups, only add')
-    parser.add_argument('--ec2-access-key', help='EC2 Access Key to use')
-    parser.add_argument('--ec2-secret-key', help='EC2 Secret Key to use')
-    parser.add_argument('--ec2-region', help='Region to use (default us-east-1)', default='us-east-1')
-    parser.add_argument('--ec2-url', help='EC2 API URL to use (otherwise use default)')
+    parser.add_argument('-I', '--ec2-access-key', help='EC2 Access Key to use')
+    parser.add_argument('-S', '--ec2-secret-key', help='EC2 Secret Key to use')
+    parser.add_argument('-R', '--ec2-region', help='Region to use (default us-east-1)', default='us-east-1')
+    parser.add_argument('-U', '--ec2-url', help='EC2 API URL to use (otherwise use default)')
+    parser.add_argument('--insecure', action='store_true', help='Do not validate SSL certs')
     args = parser.parse_args()
 
     if args.quiet:
@@ -118,19 +119,16 @@ def connect_ec2(args):
     # Connect to EC2
     if args.ec2_url:
         # Special connection to EC2-compatible API (eg. OpenStack)
-        ec2_url_parsed = urlparse(args.ec2_url)
-        is_secure = False if ec2_url_parsed.scheme == "http" else True
+        if args.insecure:
+            validate_certs = False
+        else:
+            validate_certs = True
 
-        region = boto.ec2.regioninfo.RegionInfo(name=args.ec2_region, endpoint=ec2_url_parsed.netloc)
-        lg.debug("Connecting to host=%s, port=%s, path=%s, region=%s, SSL=%s" % (ec2_url_parsed.hostname, ec2_url_parsed.port, ec2_url_parsed.path, region.name, is_secure))
-        ec2 = boto.connect_ec2(aws_access_key_id=args.ec2_access_key,
-                               aws_secret_access_key=args.ec2_secret_key,
-                               is_secure=is_secure,
-                               region=region,
-                               host=ec2_url_parsed.hostname,
-                               # when I use port parameter, it will be duplicated for unknown reason
-                               # port=ec2_url_parsed.port,
-                               path=ec2_url_parsed.path)
+        lg.debug("Connecting to EC2: url=%s, validate_certs=%s" % (args.ec2_url, validate_certs))
+        ec2 = boto.connect_ec2_endpoint(url=args.ec2_url,
+                                validate_certs=validate_certs,
+                                aws_access_key_id=args.ec2_access_key,
+                                aws_secret_access_key=args.ec2_secret_key)
     else:
         # Standard connection to AWS EC2
         ec2 = boto.ec2.connect_to_region(args.ec2_region,
