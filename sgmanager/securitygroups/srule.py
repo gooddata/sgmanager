@@ -18,7 +18,7 @@ class SRule(object):
     """
     _ids = count(0)
 
-    def __init__(self, port=None, port_from=None, port_to=None, groups=None, protocol='tcp', cidr=None, srule_object=None):
+    def __init__(self, owner_id=None, port=None, port_from=None, port_to=None, groups=None, protocol='tcp', cidr=None, srule_object=None):
         """
         Initialize variables
         """
@@ -58,7 +58,7 @@ class SRule(object):
                     # Empty owner and id, only name supplied
                     self.groups.append({
                         'name' : group,
-                        'owner': None,
+                        'owner': owner_id,
                         'id'   : None,
                     })
                 else:

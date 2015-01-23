@@ -119,7 +119,7 @@ def connect_ec2(args):
 
     if args.timeout:
         boto.config.add_section('Boto')
-        boto.config.set('Boto','http_socket_timeout', args.timeout)
+        boto.config.set('Boto','http_socket_timeout', str(args.timeout))
 
     # Connect to EC2
     if args.ec2_url:

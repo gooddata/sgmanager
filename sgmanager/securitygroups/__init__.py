@@ -27,6 +27,10 @@ class SecurityGroups(object):
 
         self.groups = {}
         self.config = None
+        try:
+            self.owner_id = ec2.get_all_security_groups('default')[0].owner_id
+        except Exception as e:
+            lg.error("Can't load default security group to lookup owner id: %s" % e)
 
     def load_remote_groups(self):
         """
@@ -111,7 +115,8 @@ class SecurityGroups(object):
                         # multiple groups are used only to simplify configuration
                         for group in rule['groups']:
                             rule['groups'] = [ group ]
-                            srule = SRule(**rule)
+
+                            srule = SRule(owner_id=self.owner_id, **rule)
                             sgroup.add_rule(srule)
                     else:
                         # No groups, initialize SRule object
