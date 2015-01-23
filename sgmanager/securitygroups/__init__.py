@@ -86,6 +86,7 @@ class SecurityGroups(object):
         :param config:
         :rtype : object
         """
+        lg.debug("Loading local configuragion")
         self.config = config
         yaml.add_constructor('!include', self._yaml_include)
 
@@ -102,6 +103,9 @@ class SecurityGroups(object):
                 raise InvalidConfiguration("Can't parse config file %s: error at line %s, column %s" % (config, mark.line+1, mark.column+1))
             else:
                 raise InvalidConfiguration("Can't parse config file %s: %s" % (config, e))
+
+        # Remove include keys
+        conf = self._fix_include(conf)
 
         lg.debug("Loading local groups")
         for name, group in conf.iteritems():
@@ -133,12 +137,58 @@ class SecurityGroups(object):
         Include another yaml file from main file
         This is usually done by registering !include tag
         """
-        filepath = "%s/%s" % (os.path.dirname(self.config), node.value)
+        filepath = "%s%s" % ('%s/' % os.path.dirname(self.config) \
+                                if os.path.dirname(self.config) else '',
+                             node.value)
         try:
             with open(filepath, 'r') as inputfile:
                 return yaml.load(inputfile)
         except IOError as e:
             raise InvalidConfiguration("Can't include config file %s: %s" % (filepath, e))
+
+    def _fix_include(self, cfg):
+        """ Special hack to use included parameters correctly """
+        for key, value in cfg.items():
+            if key == "include":
+                # Fix include
+                for include in value:
+                    if isinstance(include, dict):
+                        # Go deeper
+                        include = self._fix_include(include)
+                    cfg = self._dict_update(cfg, include)
+                cfg.pop('include')
+                continue
+
+            if isinstance(value, dict):
+                # Go deeper
+                cfg[key] = self._fix_include(value)
+        return cfg
+
+    def _dict_update(self, dict1, dict2, overwrite=False, skip_none=False):
+        """
+        Update dictionary recursively no matter on it's content
+        dict1 or main dictionary that we want to update by dict2
+        if overwrite is True, we will overwrite values in dict1,
+        otherwise we won't touch them
+        """
+        # Clone dictionaries to abandon references
+        dict1 = dict(dict1)
+        dict2 = dict(dict2)
+
+        for key, value in dict2.items():
+            if value is None and skip_none:
+                continue
+            if isinstance(value, dict) and dict1.has_key(key):
+                # We have another dictionary to update recursively
+                dict1[key] = dict_update(dict1[key], value, overwrite)
+            else:
+                if dict1.has_key(key) and not overwrite:
+                    # We don't want to overwrite values in dict1
+                    continue
+                else:
+                    dict1[key] = value
+
+        return dict1
 
     def dump_groups(self):
         """
