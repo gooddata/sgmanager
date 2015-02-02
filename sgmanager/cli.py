@@ -118,7 +118,8 @@ def connect_ec2(args):
             args.ec2_url = os.getenv('EC2_URL')
 
     if args.timeout:
-        boto.config.add_section('Boto')
+        if not boto.config.has_section('Boto'):
+            boto.config.add_section('Boto')
         boto.config.set('Boto','http_socket_timeout', str(args.timeout))
 
     # Connect to EC2
