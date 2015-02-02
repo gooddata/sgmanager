@@ -51,6 +51,7 @@ def cli():
     parser.add_argument('-U', '--ec2-url', help='EC2 API URL to use (otherwise use default)')
     parser.add_argument('-t', '--timeout', type=int, default=120, help='Set socket timeout (default 120s)')
     parser.add_argument('--insecure', action='store_true', help='Do not validate SSL certs')
+    parser.add_argument('--cert', help='Path to CA certificates (eg. /etc/pki/cacert.pem)')
     args = parser.parse_args()
 
     if args.quiet:
@@ -117,10 +118,14 @@ def connect_ec2(args):
         if os.getenv('EC2_URL'):
             args.ec2_url = os.getenv('EC2_URL')
 
+    if not boto.config.has_section('Boto'):
+        boto.config.add_section('Boto')
+
     if args.timeout:
-        if not boto.config.has_section('Boto'):
-            boto.config.add_section('Boto')
         boto.config.set('Boto','http_socket_timeout', str(args.timeout))
+
+    if args.cert:
+        boto.config.set('Boto', 'ca_certificates_file', args.cert)
 
     # Connect to EC2
     if args.ec2_url:
