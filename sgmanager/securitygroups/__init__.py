@@ -29,6 +29,7 @@ class SecurityGroups(object):
         self.config = None
         try:
             self.owner_id = ec2.get_all_security_groups('default')[0].owner_id
+            lg.debug("Default owner id: %s" % self.owner_id)
         except Exception as e:
             lg.error("Can't load default security group to lookup owner id: %s" % e)
 

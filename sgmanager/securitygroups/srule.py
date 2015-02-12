@@ -54,6 +54,14 @@ class SRule(object):
             # Unify format for granted group permissions
             # it has to contain id and group owner (account id)
             for group in groups:
+                if isinstance(group, dict) and len(group) == 1:
+                    # There's only one element in dict (suppose it's name),
+                    # convert the dict to unify it
+                    try:
+                        group = group['name']
+                    except Exception as e:
+                        raise InvalidConfiguration("Group definition doesn't contain name, rule %s" % self._ids)
+
                 if not isinstance(group, dict):
                     # Empty owner and id, only name supplied
                     self.groups.append({
