@@ -33,6 +33,7 @@ class SRule(object):
         self.port = port
         self.port_from = port_from
         self.port_to = port_to
+        self.owner_id = owner_id
 
         # All ports allowed but only port_to supplied -> complete port range by setting port_from
         if not self.port_from and self.port_to:
@@ -59,17 +60,19 @@ class SRule(object):
                     # convert the dict to unify it
                     try:
                         group = group['name']
-                    except Exception as e:
+                    except Exception:
                         raise InvalidConfiguration("Group definition doesn't contain name, rule %s" % self._ids)
 
                 if not isinstance(group, dict):
-                    # Empty owner and id, only name supplied
+                    # Empty owner and id, only name supplied, prepare full
+                    # structure
                     self.groups.append({
                         'name' : group,
                         'owner': owner_id,
                         'id'   : None,
                     })
                 else:
+                    # ..otherwise suppose we already have required structure
                     self.groups.append(group)
 
         # cidr should be None if we have groups
@@ -156,8 +159,25 @@ class SRule(object):
                 if attr == 'cidr' and getattr(self, attr)[0] == '0.0.0.0/0':
                     # Skip global cidr which is the default
                     continue
+                elif attr == 'groups' and getattr(self, attr):
+                    # Remove unwanted data from groups (if any)
+                    result[attr] = []
+
+                    for group in getattr(self, attr):
+                        if isinstance(group, dict):
+                            if group.has_key('owner') and group['owner'] == self.owner_id:
+                                # Leave only name, no need to define owner
+                                result[attr].append(group['name'])
+                            else:
+#                                if group.has_key('id') and not group['id']:
+#                                    # Id is empty, pop it out
+#                                    group.pop('id')
+                                result[attr].append(group)
+                        else:
+                            result[attr].append(group)
                 else:
                     result[attr] = getattr(self, attr)
+
 
         return result
 

@@ -64,7 +64,7 @@ class SecurityGroups(object):
                     for grant in rule.grants:
                         # For each granted permission, add new SRule
                         try:
-                            srule = SRule(groups={
+                            srule = SRule(owner_id=self.owner_id, groups={
                                 'name'  : str(grant.groupName),
                                 'owner' : str(grant.owner_id),
                                 # OpenStack doesn't support group IDs, use None if this attr isn't present
