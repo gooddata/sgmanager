@@ -6,7 +6,7 @@ from setuptools import setup
 
 setup(
     name='sgmanager',
-    version='1.2',
+    version='1.2.1',
     packages=['sgmanager', 'sgmanager.logger', 'sgmanager.securitygroups'],
     entry_points = {
         'console_scripts': [ 'sgmanager = sgmanager.cli:main' ]
