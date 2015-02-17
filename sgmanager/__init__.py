@@ -38,6 +38,26 @@ class SGManager(object):
         self.local  = None
         self.config = None
 
+    def unused_groups(self):
+        """
+        Get list of unused remote groups
+        """
+        groups_used = []
+
+        # Get all instances and their security groups
+        for instance in ec2.get_all_instances():
+            for grp in instance.groups:
+                groups_used.append(grp.id)
+
+        # Compare with all remote groups present
+        for grp in self.remote.groups.iterkeys():
+            if grp not in groups_used:
+                yield grp
+
+    def remove_unused_groups(self, dry=False):
+        for grp in self.unused_groups():
+            self.remote.groups[grp].remove_group(dry=dry)
+
     def load_remote_groups(self):
         """
         Load security groups and their rules from EC2

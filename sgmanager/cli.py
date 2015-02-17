@@ -40,6 +40,8 @@ def cli():
     parser = argparse.ArgumentParser(description='Security groups management tool')
     parser.add_argument('-c', '--config', help='Config file to use')
     parser.add_argument('--dump', action='store_true', help='Dump remote groups and exit')
+    parser.add_argument('--unused', action='store_true', help='Dump groups not used by any instance')
+    parser.add_argument('--remove-unused', action='store_true', help='Only remove groups that are not used by any instance')
     parser.add_argument('-f', '--force', action='store_true', help='Force action (otherwise run dry-run)')
     parser.add_argument('-q', '--quiet', action='store_true', help='Be quiet, print only WARN/ERROR output')
     parser.add_argument('-d', '--debug', action='store_true', help='Debug mode')
@@ -73,6 +75,16 @@ def cli():
     if args.dump:
         # Only dump remote groups and exit
         print manager.dump_remote_groups()
+        sys.exit(0)
+
+    if args.remove_unused:
+        manager.remove_unused_groups(dry=not args.force)
+        sys.exit(0)
+
+    if args.unused:
+        # Print unused remote groups
+        for grp in manager.unused_groups():
+            print "- %s" % grp
         sys.exit(0)
 
     if not args.config:
