@@ -52,6 +52,7 @@ def cli():
     parser.add_argument('-R', '--ec2-region', help='Region to use (default us-east-1)', default='us-east-1')
     parser.add_argument('-U', '--ec2-url', help='EC2 API URL to use (otherwise use default)')
     parser.add_argument('-t', '--timeout', type=int, default=120, help='Set socket timeout (default 120s)')
+    parser.add_argument('-m', '--mode', help='Mode for validating group name and description (default a)', default='a')
     parser.add_argument('--insecure', action='store_true', help='Do not validate SSL certs')
     parser.add_argument('--cert', help='Path to CA certificates (eg. /etc/pki/cacert.pem)')
     args = parser.parse_args()
@@ -91,7 +92,18 @@ def cli():
         lg.error('No config file supplied')
         sys.exit(1)
 
-    manager.load_local_groups(args.config)
+    mode = False
+    if args.mode in ('a', 'ascii'):
+        mode = 'ascii'
+    if args.mode in ('s', 'strict'):
+        mode = 'strict'
+    if args.mode in ('v', 'vpc'):
+        mode = 'vpc'
+    if not mode:
+        lg.error('Invalid mode "%s" selected' % args.mode)
+        sys.exit(1)
+
+    manager.load_local_groups(args.config, mode)
 
     # Parameters for manager.apply_diff()
     params = {

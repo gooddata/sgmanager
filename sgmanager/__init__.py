@@ -69,7 +69,7 @@ class SGManager(object):
         self.remote.load_remote_groups()
         return self.remote
 
-    def load_local_groups(self, config):
+    def load_local_groups(self, config, mode):
         """
         Load local groups from config file
         Save and return SecurityGroups object
@@ -78,7 +78,7 @@ class SGManager(object):
         :rtype : object
         """
         self.local = SecurityGroups()
-        self.local.load_local_groups(config)
+        self.local.load_local_groups(config, mode)
         return self.local
 
     def dump_remote_groups(self):

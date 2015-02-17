@@ -2,6 +2,7 @@
 # Copyright (C) 2007-2013, GoodData(R) Corporation. All rights reserved
 
 import os
+import re
 import logging
 
 import yaml
@@ -79,7 +80,7 @@ class SecurityGroups(object):
 
         return self.groups
 
-    def load_local_groups(self, config):
+    def load_local_groups(self, config, mode):
         """
         Load local groups from config file
         Save and return SecurityGroups object
@@ -111,6 +112,27 @@ class SecurityGroups(object):
         lg.debug("Loading local groups")
         for name, group in conf.iteritems():
             # Initialize SGroup object
+
+            # Test len of name and description
+            if len(name) > 255:
+                raise InvalidConfiguration("Name of group '%s' is longer than 255 chars" % (name))
+            if group.has_key('description') and len(group['description']) > 255:
+                raise InvalidConfiguration("Description of group '%s' is longer than 255 chars" % (name))
+
+            # Test name and description according to spec
+            if mode == 'strict':
+                allowed = '^[a-zA-Z0-9_\- ]+$'
+            if mode == 'ascii':
+                allowed = '^[\x20-\x7E]+$'
+            if mode == 'vpc':
+                allowed = '^[a-zA-Z0-9 ._\-:/()#,@[\]+=&;{}!$*]+$'
+
+            if group.has_key('description') and not re.match(allowed, group['description']):
+                raise InvalidConfiguration("Description of group '%s' is not valid in %s mode" % (name, mode))
+
+            if not re.match(allowed, name):
+                raise InvalidConfiguration("Name of group '%s' is not valid in %s mode" % (name, mode))
+
             sgroup = SGroup(name, None if not group.has_key('description') else group['description'])
 
             if group.has_key('rules'):
