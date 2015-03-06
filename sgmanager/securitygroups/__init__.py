@@ -135,18 +135,35 @@ class SecurityGroups(object):
 
             sgroup = SGroup(name, None if not group.has_key('description') else group['description'])
 
+            # Dive into group's rules and create srule objects
             if group.has_key('rules'):
                 for rule in group['rules']:
                     if rule.has_key('groups'):
                         # For each group, create separate rule
                         # multiple groups are used only to simplify configuration
-                        for group in rule['groups']:
-                            rule['groups'] = [ group ]
+                        for rule_group in rule['groups']:
+                            rule_new = rule
+                            rule_new['groups'] = [ rule_group ]
+                            # Ignore cidr here, these defines another rules
+                            if rule_new.has_key('cidr'):
+                                rule_new.pop('cidr')
 
-                            srule = SRule(owner_id=self.owner_id, **rule)
+                            srule = SRule(owner_id=self.owner_id, **rule_new)
+                            sgroup.add_rule(srule)
+                    elif rule.has_key('cidr'):
+                        # For each cidr, create separate rule
+                        # multiple cidrs are used only to simplify configuration
+                        for rule_cidr in rule['cidr']:
+                            rule_new = rule
+                            rule_new['cidr'] = [ rule_cidr ]
+                            # Ignore groups here, these were managed above
+                            if rule_new.has_key('groups'):
+                                rule_new.pop('groups')
+
+                            srule = SRule(**rule_new)
                             sgroup.add_rule(srule)
                     else:
-                        # No groups, initialize SRule object
+                        # No groups or cidr, initialize SRule object
                         srule = SRule(**rule)
                         # Add it into group
                         sgroup.add_rule(srule)
