@@ -112,65 +112,77 @@ class SecurityGroups(object):
         lg.debug("Loading local groups")
         for name, group in conf.iteritems():
             # Initialize SGroup object
-
-            # Test len of name and description
-            if len(name) > 255:
-                raise InvalidConfiguration("Name of group '%s' is longer than 255 chars" % (name))
-            if group.has_key('description') and len(group['description']) > 255:
-                raise InvalidConfiguration("Description of group '%s' is longer than 255 chars" % (name))
-
-            # Test name and description according to spec
-            if mode == 'strict':
-                allowed = '^[a-zA-Z0-9_\- ]+$'
-            if mode == 'ascii':
-                allowed = '^[\x20-\x7E]+$'
-            if mode == 'vpc':
-                allowed = '^[a-zA-Z0-9 ._\-:/()#,@[\]+=&;{}!$*]+$'
-
-            if group.has_key('description') and not re.match(allowed, group['description']):
-                raise InvalidConfiguration("Description of group '%s' is not valid in %s mode" % (name, mode))
-
-            if not re.match(allowed, name):
-                raise InvalidConfiguration("Name of group '%s' is not valid in %s mode" % (name, mode))
-
-            sgroup = SGroup(name, None if not group.has_key('description') else group['description'])
-
-            # Dive into group's rules and create srule objects
-            if group.has_key('rules'):
-                for rule in group['rules']:
-                    if rule.has_key('groups'):
-                        # For each group, create separate rule
-                        # multiple groups are used only to simplify configuration
-                        for rule_group in rule['groups']:
-                            rule_new = rule
-                            rule_new['groups'] = [ rule_group ]
-                            # Ignore cidr here, these defines another rules
-                            if rule_new.has_key('cidr'):
-                                rule_new.pop('cidr')
-
-                            srule = SRule(owner_id=self.owner_id, **rule_new)
-                            sgroup.add_rule(srule)
-                    elif rule.has_key('cidr'):
-                        # For each cidr, create separate rule
-                        # multiple cidrs are used only to simplify configuration
-                        for rule_cidr in rule['cidr']:
-                            rule_new = rule
-                            rule_new['cidr'] = [ rule_cidr ]
-                            # Ignore groups here, these were managed above
-                            if rule_new.has_key('groups'):
-                                rule_new.pop('groups')
-
-                            srule = SRule(**rule_new)
-                            sgroup.add_rule(srule)
-                    else:
-                        # No groups or cidr, initialize SRule object
-                        srule = SRule(**rule)
-                        # Add it into group
-                        sgroup.add_rule(srule)
-
-            self.groups[name] = sgroup
+            self.groups[name] = self._load_sgroup(name, group, check_mode=mode)
 
         return self.groups
+
+    def _load_sgroup(self, name, group, check_mode='strict'):
+        """
+        Return SGroup object with assigned rules
+        """
+        # Test len of name and description
+        if len(name) > 255:
+            raise InvalidConfiguration("Name of group '%s' is longer than 255 chars" % (name))
+        if group.has_key('description') and len(group['description']) > 255:
+            raise InvalidConfiguration("Description of group '%s' is longer than 255 chars" % (name))
+
+        # Test name and description according to spec
+        if check_mode == 'strict':
+            allowed = '^[a-zA-Z0-9_\- ]+$'
+        if check_mode == 'ascii':
+            allowed = '^[\x20-\x7E]+$'
+        if check_mode == 'vpc':
+            allowed = '^[a-zA-Z0-9 ._\-:/()#,@[\]+=&;{}!$*]+$'
+
+        if group.has_key('description') and not re.match(allowed, group['description']):
+            raise InvalidConfiguration("Description of group '%s' is not valid in %s check_mode" % (name, check_mode))
+
+        if not re.match(allowed, name):
+            raise InvalidConfiguration("Name of group '%s' is not valid in %s check_mode" % (name, check_mode))
+
+        sgroup = SGroup(name, None if not group.has_key('description') else group['description'])
+
+        # Dive into group's rules and create srule objects
+        if group.has_key('rules'):
+            for rule in group['rules']:
+                self._load_rule(sgroup, rule)
+
+        return sgroup
+
+    def _load_rule(self, sgroup, rule):
+        if not rule.has_key('groups') and not rule.has_key('cidr'):
+            # No groups or cidr, initialize SRule object
+            srule = SRule(**rule)
+            # Add it into group
+            sgroup.add_rule(srule)
+        else:
+            # We need to create more separate rules from this single
+            # definition
+            if rule.has_key('groups'):
+                # For each group, create separate rule
+                # multiple groups are used only to simplify configuration
+                for rule_group in rule['groups']:
+                    rule_new = rule.copy()
+                    rule_new['groups'] = [ rule_group ]
+                    # Ignore cidr here, these defines another rules
+                    if rule_new.has_key('cidr'):
+                        rule_new.pop('cidr')
+
+                    srule = SRule(owner_id=self.owner_id, **rule_new)
+                    sgroup.add_rule(srule)
+
+            if rule.has_key('cidr'):
+                # For each cidr, create separate rule
+                # multiple cidrs are used only to simplify configuration
+                for rule_cidr in rule['cidr']:
+                    rule_new = rule.copy()
+                    rule_new['cidr'] = [ rule_cidr ]
+                    # Ignore groups here, these were managed above
+                    if rule_new.has_key('groups'):
+                        rule_new.pop('groups')
+
+                    srule = SRule(**rule_new)
+                    sgroup.add_rule(srule)
 
     def _yaml_include(self, loader, node):
         """
