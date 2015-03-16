@@ -106,3 +106,6 @@ Mode depends on cloud used, for AWS EC2 *-a* is recommended, for AWS EC2 VPC *-v
 		  port_to: 50500
 		  groups:
 			- test1
+
+## TODO
+- support for VPC groups
