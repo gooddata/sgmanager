@@ -89,8 +89,8 @@ class SRule(object):
             else:
                 self.cidr = cidr
 
-        self._check_configuration()
         self.name = self._generate_name()
+        self._check_configuration()
 
         lg.debug('Loaded rule %s' % self.name)
 

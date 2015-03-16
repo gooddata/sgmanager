@@ -43,6 +43,10 @@ class SecurityGroups(object):
         lg.debug("Loading remote groups")
         groups = ec2.get_all_security_groups()
         for group in groups:
+            if group.vpc_id:
+                lg.error("Found VPC group '%s' (vpc_id=%s), management of VPC groups is not implemented, ignoring.." % (str(group.name), group.vpc_id))
+                continue
+
             # Initialize SGroup object
             sgroup = SGroup(str(group.name), str(group.description), sgroup_object=group)
 
