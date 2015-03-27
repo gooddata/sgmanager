@@ -14,16 +14,23 @@ class SGroup(object):
     """
     Single security group and it's rules
     """
-    def __init__(self, name=None, description=None, rules=None, sgroup_object=None):
+    def __init__(self, name=None, description=None, rules=None, sgroup_object=None, vpc_id=None):
         """
         Initialize variables
         """
         global ec2
         ec2 = sgmanager.ec2
 
-        self.name = name
-        self.description = description
-        self.object = sgroup_object
+        if sgroup_object:
+            # load basic informations from object
+            self.name = str(sgroup_object.name)
+            self.description = str(sgroup_object.description)
+            self.vpc_id = sgroup_object.vpc_id
+            self.object = sgroup_object
+        else:
+            self.name = name
+            self.description = description
+            self.vpc_id = vpc_id
 
         if not rules:
             self.rules = []
@@ -47,10 +54,15 @@ class SGroup(object):
         """
         Return dictionary structure
         """
-        return {
-            'description' : self.description,
-            'rules'  : [ rule.dump() for rule in self.rules ],
+        dump = {
+            'description': self.description,
+            'rules': [rule.dump() for rule in self.rules],
         }
+
+        if self.vpc_id:
+            dump['vpc_id'] = self.vpc_id
+
+        return dump
 
     def __eq__(self, other):
         """
@@ -128,7 +140,7 @@ class SGroup(object):
         """
         lg.info('Adding group %s' % self.name)
         if not dry:
-            ec2.create_security_group(self.name, self.description)
+            ec2.create_security_group(self.name, self.description, vpc_id=self.vpc_id)
 
         # Add rules
         if not no_rules:

@@ -15,7 +15,7 @@ lg = logging.getLogger(__name__)
 
 
 class SGManager(object):
-    def __init__(self, ec2_connection=None):
+    def __init__(self, ec2_connection=None, vpc=False):
         """
         Connect to EC2
         :param config: path to configuration file
@@ -33,6 +33,11 @@ class SGManager(object):
         else:
             # Try to connect on our own
             ec2 = ec2_connection
+
+        if vpc:
+            lg.debug("Working only with VPC security groups")
+
+        self.vpc = vpc
 
         self.remote = None
         self.local  = None
@@ -65,7 +70,7 @@ class SGManager(object):
 
         :rtype : object
         """
-        self.remote = SecurityGroups()
+        self.remote = SecurityGroups(vpc=self.vpc)
         self.remote.load_remote_groups()
         return self.remote
 
@@ -77,7 +82,7 @@ class SGManager(object):
         :param config: configuration file path
         :rtype : object
         """
-        self.local = SecurityGroups()
+        self.local = SecurityGroups(vpc=self.vpc)
         self.local.load_local_groups(config, mode)
         return self.local
 
