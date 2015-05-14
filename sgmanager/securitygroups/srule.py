@@ -18,7 +18,7 @@ class SRule(object):
     """
     _ids = count(0)
 
-    def __init__(self, owner_id=None, port=None, port_from=None, port_to=None, groups=None, protocol='tcp', cidr=None, srule_object=None):
+    def __init__(self, owner_id=None, port=None, port_from=None, port_to=None, groups=None, protocol='tcp', cidr=None, srule_object=None, egress=False):
         """
         Initialize variables
         """
@@ -34,6 +34,8 @@ class SRule(object):
         self.port_from = port_from
         self.port_to = port_to
         self.owner_id = owner_id
+
+        self.egress = egress
 
         # All ports allowed but only port_to supplied -> complete port range by setting port_from
         if not self.port_from and self.port_to:
@@ -123,6 +125,9 @@ class SRule(object):
             if group['owner']:
                 params.append('owner=%s' % group['owner'])
 
+        if self.egress:
+            params.append('egress=%s' % self.egress)
+
         return '<%s>' % ','.join(params)
 
     def set_group(self, group):
@@ -144,8 +149,8 @@ class SRule(object):
         if self.port_to and not isinstance(self.port_to, int):
             raise InvalidConfiguration('Parameter port_to must be integer for rule %s not %s' % (self.name, type(self.port_to).__name__))
 
-        if self.protocol and self.protocol not in ['tcp', 'udp', 'icmp']:
-            raise InvalidConfiguration('Protocol must be tcp, udp or icmp, not %s for rule %s' % (self.protocol, self.name))
+        if self.protocol and self.protocol not in ['tcp', 'udp', 'icmp', '-1', '6', '17']:
+            raise InvalidConfiguration('Protocol must be tcp (6), udp (17) or icmp (-1), not %s for rule %s' % (self.protocol, self.name))
 
     def dump(self):
         """
@@ -154,7 +159,7 @@ class SRule(object):
         """
         result = {}
 
-        for attr in ['protocol', 'port', 'port_to', 'port_from', 'cidr', 'groups']:
+        for attr in ['protocol', 'port', 'port_to', 'port_from', 'cidr', 'groups', 'egress']:
             if getattr(self, attr):
                 if attr == 'cidr' and getattr(self, attr)[0] == '0.0.0.0/0':
                     # Skip global cidr which is the default
@@ -165,7 +170,7 @@ class SRule(object):
 
                     for group in getattr(self, attr):
                         if isinstance(group, dict):
-                            if group.has_key('owner') and group['owner'] == self.owner_id:
+                            if 'owner' in group.keys() and group['owner'] == self.owner_id:
                                 # Leave only name, no need to define owner
                                 result[attr].append(group['name'])
                             else:
@@ -177,8 +182,6 @@ class SRule(object):
                             result[attr].append(group)
                 else:
                     result[attr] = getattr(self, attr)
-
-
         return result
 
     def __ne__(self, other):
@@ -195,7 +198,7 @@ class SRule(object):
             raise TypeError("Compared object must be instance of SRule, not %s" % type(other).__name__)
 
         # Match common attributes
-        for attr in ['protocol', 'port', 'port_to', 'port_from', 'cidr']:
+        for attr in ['protocol', 'port', 'port_to', 'port_from', 'cidr', 'egress']:
             if getattr(self, attr) != getattr(other, attr):
                 return False
 
@@ -219,7 +222,10 @@ class SRule(object):
         lg.info('Adding rule %s into group %s' % (self.name, self.group.name))
 
         if not dry:
-            ec2.authorize_security_group(**self._get_boto_params())
+            if self.egress:
+                ec2.authorize_security_group_egress(**self._get_boto_params())
+            else:
+                ec2.authorize_security_group(**self._get_boto_params())
 
     def remove_rule(self, dry=False):
         """
@@ -227,7 +233,10 @@ class SRule(object):
         """
         lg.info('Removing rule %s from group %s' % (self.name, self.group.name))
         if not dry:
-            ec2.revoke_security_group(**self._get_boto_params())
+            if self.egress:
+                ec2.revoke_security_group_egress(**self._get_boto_params())
+            else:
+                ec2.revoke_security_group(**self._get_boto_params())
 
     def _get_boto_params(self):
         """

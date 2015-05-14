@@ -39,6 +39,7 @@ def cli():
     """
     parser = argparse.ArgumentParser(description='Security groups management tool')
     parser.add_argument('-c', '--config', help='Config file to use')
+    parser.add_argument('--vpc', action='store_true', help='Work with VPC groups, otherwise only non-VPC')
     parser.add_argument('--dump', action='store_true', help='Dump remote groups and exit')
     parser.add_argument('--unused', action='store_true', help='Dump groups not used by any instance')
     parser.add_argument('--remove-unused', action='store_true', help='Only remove groups that are not used by any instance')
@@ -70,7 +71,7 @@ def cli():
 
     # Initialize SGManager
     ec2 = connect_ec2(args)
-    manager = SGManager(ec2)
+    manager = SGManager(ec2, vpc=args.vpc)
     manager.load_remote_groups()
 
     if args.dump:
@@ -97,8 +98,9 @@ def cli():
         mode = 'ascii'
     if args.mode in ('s', 'strict'):
         mode = 'strict'
-    if args.mode in ('v', 'vpc'):
+    if args.mode in ('v', 'vpc') or args.vpc:
         mode = 'vpc'
+
     if not mode:
         lg.error('Invalid mode "%s" selected' % args.mode)
         sys.exit(1)

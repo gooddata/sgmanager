@@ -19,12 +19,14 @@ lg = logging.getLogger(__name__)
 
 
 class SecurityGroups(object):
-    def __init__(self):
+    def __init__(self, vpc=False):
         """
         Create instance, save ec2 connection
         """
         global ec2
         ec2 = sgmanager.ec2
+
+        self.vpc = vpc
 
         self.groups = {}
         self.config = None
@@ -43,46 +45,67 @@ class SecurityGroups(object):
         lg.debug("Loading remote groups")
         groups = ec2.get_all_security_groups()
         for group in groups:
-            if group.vpc_id:
-                lg.error("Found VPC group '%s' (vpc_id=%s), management of VPC groups is not implemented, ignoring.." % (str(group.name), group.vpc_id))
+            if not self.vpc and group.vpc_id:
+                lg.debug("Skipping VPC group %s" % group.name)
+                continue
+            elif self.vpc and not group.vpc_id:
+                lg.debug("Skipping non-VPC group %s" % group.name)
                 continue
 
             # Initialize SGroup object
-            sgroup = SGroup(str(group.name), str(group.description), sgroup_object=group)
+            sgroup = SGroup(sgroup_object=group)
 
-            # For each rule in group
+            # For each egress rule in group
+            for rule in group.rules_egress:
+                self._load_remote_rule(rule, sgroup, egress=True)
+
+            # For each ingress rule in group
             for rule in group.rules:
-                rule_info = {
-                    'protocol'  : str(rule.ip_protocol),
-                    'srule_object' : rule,
-                }
-
-                if rule.from_port != rule.to_port:
-                    # We have port range, use port_from and port_to parameters
-                    rule_info['port_from'] = int(rule.from_port)
-                    rule_info['port_to'] = int(rule.to_port)
-                else:
-                    # We have single port, use port parameter
-                    rule_info['port'] = int(rule.to_port)
-
-                if rule.grants:
-                    for grant in rule.grants:
-                        # For each granted permission, add new SRule
-                        try:
-                            srule = SRule(owner_id=self.owner_id, groups={
-                                'name'  : str(grant.groupName),
-                                'owner' : str(grant.owner_id),
-                                # OpenStack doesn't support group IDs, use None if this attr isn't present
-                                'id'    : None if getattr(grant, 'groupId', None) is None else str(getattr(grant, 'groupId'))
-                            }, **rule_info)
-                        except AttributeError:
-                            srule = SRule(cidr=[ str(grant.cidr_ip) ], **rule_info)
-
-                        sgroup.add_rule(srule)
+                self._load_remote_rule(rule, sgroup)
 
             self.groups[sgroup.name] = sgroup
 
         return self.groups
+
+    def _load_remote_rule(self, rule, sgroup, egress=False):
+        """
+        Create SRule objects from single remote rule and add them to sgroup
+        """
+        rule_info = {
+            'protocol': str(rule.ip_protocol),
+            'srule_object': rule,
+        }
+
+        if egress:
+            rule_info['egress'] = egress
+
+        if sgroup.vpc_id and not rule.to_port:
+            # We are VPC rule without port (probably icmp), it's fine..
+            pass
+        else:
+            # Non-VPC rule requires port
+            if rule.from_port != rule.to_port:
+                # We have port range, use port_from and port_to parameters
+                rule_info['port_from'] = int(rule.from_port)
+                rule_info['port_to'] = int(rule.to_port)
+            else:
+                # We have single port, use port parameter
+                rule_info['port'] = int(rule.to_port)
+
+        if rule.grants:
+            for grant in rule.grants:
+                # For each granted permission, add new SRule
+                try:
+                    srule = SRule(owner_id=self.owner_id, groups={
+                        'name'  : str(grant.groupName),
+                        'owner' : str(grant.owner_id),
+                        # OpenStack doesn't support group IDs, use None if this attr isn't present
+                        'id'    : None if getattr(grant, 'groupId', None) is None else str(getattr(grant, 'groupId'))
+                    }, **rule_info)
+                except AttributeError:
+                    srule = SRule(cidr=[ str(grant.cidr_ip) ], **rule_info)
+
+                sgroup.add_rule(srule)
 
     def load_local_groups(self, config, mode):
         """
@@ -144,7 +167,9 @@ class SecurityGroups(object):
         if not re.match(allowed, name):
             raise InvalidConfiguration("Name of group '%s' is not valid in %s check_mode" % (name, check_mode))
 
-        sgroup = SGroup(name, None if not group.has_key('description') else group['description'])
+        sgroup = SGroup(name,
+                        description=None if 'description ' not in group.keys() else group['description'],
+                        vpc_id=None if 'vpc_id' not in group.keys() else group['vpc_id'])
 
         # Dive into group's rules and create srule objects
         if group.has_key('rules'):
