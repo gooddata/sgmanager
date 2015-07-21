@@ -168,7 +168,7 @@ class SecurityGroups(object):
             raise InvalidConfiguration("Name of group '%s' is not valid in %s check_mode" % (name, check_mode))
 
         sgroup = SGroup(name,
-                        description=None if 'description ' not in group.keys() else group['description'],
+                        description=None if 'description' not in group.keys() else group['description'],
                         vpc_id=None if 'vpc_id' not in group.keys() else group['vpc_id'])
 
         # Dive into group's rules and create srule objects
