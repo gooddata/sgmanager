@@ -48,6 +48,7 @@ def cli():
     parser.add_argument('-d', '--debug', action='store_true', help='Debug mode')
     parser.add_argument('--no-remove', action='store_true', help='Do not remove any groups or rules, only add')
     parser.add_argument('--no-remove-groups', action='store_true', help='Do not remove any groups, only add')
+    parser.add_argument('--only-groups', nargs='+', help='Only manage following list of groups, space-separated')
     parser.add_argument('-I', '--ec2-access-key', help='EC2 Access Key to use')
     parser.add_argument('-S', '--ec2-secret-key', help='EC2 Secret Key to use')
     parser.add_argument('-R', '--ec2-region', help='Region to use (default us-east-1)', default='us-east-1')
@@ -71,7 +72,7 @@ def cli():
 
     # Initialize SGManager
     ec2 = connect_ec2(args)
-    manager = SGManager(ec2, vpc=args.vpc)
+    manager = SGManager(ec2, vpc=args.vpc, only_groups=args.only_groups)
     manager.load_remote_groups()
 
     if args.dump:

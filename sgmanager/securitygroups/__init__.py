@@ -19,7 +19,7 @@ lg = logging.getLogger(__name__)
 
 
 class SecurityGroups(object):
-    def __init__(self, vpc=False):
+    def __init__(self, vpc=False, only_groups=[]):
         """
         Create instance, save ec2 connection
         """
@@ -27,6 +27,7 @@ class SecurityGroups(object):
         ec2 = sgmanager.ec2
 
         self.vpc = vpc
+        self.only_groups = only_groups
 
         self.groups = {}
         self.config = None
@@ -43,7 +44,7 @@ class SecurityGroups(object):
         :rtype : list
         """
         lg.debug("Loading remote groups")
-        groups = ec2.get_all_security_groups()
+        groups = ec2.get_all_security_groups(self.only_groups)
         for group in groups:
             if not self.vpc and group.vpc_id:
                 lg.debug("Skipping VPC group %s" % group.name)
@@ -138,8 +139,9 @@ class SecurityGroups(object):
 
         lg.debug("Loading local groups")
         for name, group in conf.iteritems():
-            # Initialize SGroup object
-            self.groups[name] = self._load_sgroup(name, group, check_mode=mode)
+            if not self.only_groups or name in self.only_groups:
+                # Initialize SGroup object
+                self.groups[name] = self._load_sgroup(name, group, check_mode=mode)
 
         return self.groups
 
