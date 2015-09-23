@@ -181,39 +181,34 @@ class SecurityGroups(object):
         return sgroup
 
     def _load_rule(self, sgroup, rule):
-        if not rule.has_key('groups') and not rule.has_key('cidr'):
-            # No groups or cidr, initialize SRule object
-            srule = SRule(**rule)
-            # Add it into group
-            sgroup.add_rule(srule)
-        else:
-            # We need to create more separate rules from this single
-            # definition
-            if rule.has_key('groups'):
-                # For each group, create separate rule
-                # multiple groups are used only to simplify configuration
-                for rule_group in rule['groups']:
-                    rule_new = rule.copy()
-                    rule_new['groups'] = [ rule_group ]
-                    # Ignore cidr here, these defines another rules
-                    if rule_new.has_key('cidr'):
-                        rule_new.pop('cidr')
 
-                    srule = SRule(owner_id=self.owner_id, **rule_new)
+        def _expand_to_and_load(sgroup, r):
+                if 'to' in r:
+                    # expand also "to:" section
+                    for proto_port in r['to']:
+                        new_r = r.copy()
+                        new_r.pop('to')
+                        new_r.update(proto_port)
+                        srule = SRule(owner_id=self.owner_id, **new_r)
+                        sgroup.add_rule(srule)
+                else:
+                    srule = SRule(owner_id=self.owner_id, **r)
                     sgroup.add_rule(srule)
 
-            if rule.has_key('cidr'):
-                # For each cidr, create separate rule
-                # multiple cidrs are used only to simplify configuration
-                for rule_cidr in rule['cidr']:
-                    rule_new = rule.copy()
-                    rule_new['cidr'] = [ rule_cidr ]
-                    # Ignore groups here, these were managed above
-                    if rule_new.has_key('groups'):
-                        rule_new.pop('groups')
+        for expand_key in ['cidr', 'groups']:
+            for cidr_or_group in rule.get(expand_key, []):
+                # create new rule
+                new_rule = {expand_key: [cidr_or_group]}
 
-                    srule = SRule(**rule_new)
-                    sgroup.add_rule(srule)
+                # copy the rest
+                for key in ['port', 'protocol', 'port_from', 'port_to', 'to']:
+                    if key in rule:
+                        new_rule[key] = rule[key]
+
+                _expand_to_and_load(sgroup, new_rule)
+
+            if 'cidr' not in rule and 'groups' not in rule:
+                _expand_to_and_load(sgroup, rule)
 
     def _yaml_include(self, loader, node):
         """

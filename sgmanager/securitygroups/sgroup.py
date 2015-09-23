@@ -5,6 +5,7 @@ import logging
 import sgmanager
 from sgmanager.decorators import CachedMethod
 from sgmanager.securitygroups.srule import SRule
+from copy import deepcopy
 
 # Logging should be initialized by cli
 lg = logging.getLogger(__name__)
@@ -50,13 +51,80 @@ class SGroup(object):
         rule.set_group(self)
         self.rules.append(rule)
 
-    def dump(self):
+    def dump(self, merge_by=['to', 'from']):
+
+        def merge(rules, what='to'):
+            """
+            Merge rules before dumping
+            """
+            def format_key(rule, by):
+                if 'to' in rule and isinstance(rule['to'], list):
+                    rule['to'].sort()
+                # supposing str orders dict to be always the same
+                return str(dict((k, v) for (k, v) in rule.items() if k in by))
+
+            def merge_rules(r1, r2):
+                for key in combine:
+                    if key in r2 and key not in r1:
+                        r1[key] = r2[key]
+                    elif key in r2 and key in r1:
+                        r1[key].extend(r2[key])
+
+                if pack:
+                    if pack_key in r1:
+                        r1[pack_key].append(
+                            dict((k, r2.get(k)) for k in pack if r2.get(k)))
+                    else:
+                        r1[pack_key] = [
+                            dict((k, r1.get(k)) for k in pack if r1.get(k)),
+                            dict((k, r2.get(k)) for k in pack if r2.get(k))]
+                    # remove port, proto, etc but not "to":
+                    for k in pack:
+                        if k != pack_key:
+                            r1.pop(k, None)
+
+            if what == 'to':
+                by = ['groups', 'cidr']
+                combine = []
+                pack = ['protocol', 'port', 'port_from', 'port_to', 'to']
+            else:  # 'from'
+                by = ['protocol', 'port', 'port_from', 'port_to',  'to']
+                combine = ['groups', 'cidr']
+                pack = []
+
+            pack_key = 'to'
+            seen = {}
+            new_rules = []
+            new_rule_idx = 0
+
+            for rule in rules:
+                if format_key(rule, by) not in seen:
+                    new_rules.append(deepcopy(rule))
+                    seen[format_key(rule, by)] = new_rule_idx
+                    new_rule_idx += 1
+                else:
+                    idx = seen[format_key(rule, by)]
+                    # this awesome check only filter out rules like: upd 123 from 0.0.0.0/0
+                    # which tend to be mask easily by merging with some other rules
+                    if len([k for k in new_rules[idx].keys() if k not in by]) != 0 and len([k for k in rule.keys() if k not in by]):
+                        merge_rules(new_rules[idx], rule)
+                    else:
+                        new_rules.append(deepcopy(rule))
+
+            return new_rules
+
         """
         Return dictionary structure
         """
+
+        rules = [rule.dump() for rule in self.rules]
+
+        for how in merge_by:
+            rules = merge(rules, how)
+
         dump = {
             'description': self.description,
-            'rules': [rule.dump() for rule in self.rules],
+            'rules': rules,
         }
 
         if self.vpc_id:
