@@ -6,7 +6,7 @@ from setuptools import setup
 
 setup(
     name='sgmanager',
-    version='1.4',
+    version='1.4.1',
     packages=['sgmanager', 'sgmanager.logger', 'sgmanager.securitygroups'],
     entry_points = {
         'console_scripts': [ 'sgmanager = sgmanager.cli:main' ]
@@ -33,5 +33,8 @@ setup(
         'Programming Language :: Python',
         'Programming Language :: Python :: Implementation :: CPython',
     ],
-    install_requires=['boto<2.35', 'PyYAML', 'argparse']
+    install_requires=['boto<2.35', 'PyYAML', 'argparse'],
+    dependency_links=[
+        'https://github.com/boto/boto/archive/2.34.0.tar.gz#egg=boto-2.34'
+    ]
 )
