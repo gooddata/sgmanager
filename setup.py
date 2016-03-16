@@ -8,14 +8,14 @@ setup(
     name='sgmanager',
     version='1.4.1',
     packages=['sgmanager', 'sgmanager.logger', 'sgmanager.securitygroups'],
-    entry_points = {
-        'console_scripts': [ 'sgmanager = sgmanager.cli:main' ]
+    entry_points={
+        'console_scripts': ['sgmanager = sgmanager.cli:main']
     },
     license='BSD',
-    author='Filip Pytloun',
-    author_email='filip.pytloun@gooddata.com',
-    maintainer='Filip Pytloun',
-    maintainer_email='filip@pytloun.cz',
+    author='GoodData Corporation',
+    author_email='python@gooddata.com',
+    maintainer='Petr Benas',
+    maintainer_email='petr.benas@gooddata.com',
     description='Security Groups Management Tool',
     long_description='Tooling for management of security groups. Load local configuration, load remote groups and apply differences.',
     url='https://github.com/gooddata/sgmanager',

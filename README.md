@@ -109,3 +109,6 @@ Mode depends on cloud used, for AWS EC2 *-a* is recommended, for AWS EC2 VPC *-v
 
 ## TODO
 - support for VPC groups
+
+## Development status
+This tool is actively maintained by GoodData.

@@ -1,12 +1,14 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# Copyright (C) 2007-2013, GoodData(R) Corporation. All rights reserved
 """
-Not mine, found over there:
+based on
 http://code.activestate.com/recipes/576819-logging-to-console-without-surprises/
-
-Licensed under the MIT License and slightly modified.
 """
+
 import logging
 import sys
+
 
 class LevelHandler(logging.StreamHandler):
     """A handler that logs to console in the sensible way.
