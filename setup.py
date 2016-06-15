@@ -6,7 +6,7 @@ from setuptools import setup
 
 setup(
     name='sgmanager',
-    version='1.4.1',
+    version='1.4.2',
     packages=['sgmanager', 'sgmanager.logger', 'sgmanager.securitygroups'],
     entry_points={
         'console_scripts': ['sgmanager = sgmanager.cli:main']
@@ -17,7 +17,9 @@ setup(
     maintainer='Petr Benas',
     maintainer_email='petr.benas@gooddata.com',
     description='Security Groups Management Tool',
-    long_description='Tooling for management of security groups. Load local configuration, load remote groups and apply differences.',
+    long_description=(
+        'Tooling for management of security groups. Load local configuration,'
+        'load remote groups and apply differences.'),
     url='https://github.com/gooddata/sgmanager',
     download_url='https://github.com/gooddata/sgmanager',
     platform='POSIX',
@@ -33,8 +35,5 @@ setup(
         'Programming Language :: Python',
         'Programming Language :: Python :: Implementation :: CPython',
     ],
-    install_requires=['boto<2.35', 'PyYAML', 'argparse'],
-    dependency_links=[
-        'https://github.com/boto/boto/archive/2.34.0.tar.gz#egg=boto-2.34'
-    ]
+    install_requires=['boto', 'PyYAML'],
 )
