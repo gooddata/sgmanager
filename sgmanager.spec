@@ -1,7 +1,7 @@
 %global with_check 0
 
 Name:           sgmanager
-Version:        1.4.2
+Version:        1.4.3
 Release:        1%{?dist}
 Summary:        Tooling for EC2 security groups management
 
