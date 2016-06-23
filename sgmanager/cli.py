@@ -56,6 +56,7 @@ def cli():
     parser.add_argument('-t', '--timeout', type=int, default=120, help='Set socket timeout (default 120s)')
     parser.add_argument('-m', '--mode', help='Mode for validating group name and description (default a)', default='a')
     parser.add_argument('--insecure', action='store_true', help='Do not validate SSL certs')
+    parser.add_argument('--threshold', help='Maximum threshold to use for add/rm of groups/rules in percentage (default: 15)', default=15)
     parser.add_argument('--cert', help='Path to CA certificates (eg. /etc/pki/cacert.pem)')
     args = parser.parse_args()
 
@@ -80,14 +81,14 @@ def cli():
         print manager.dump_remote_groups()
         sys.exit(0)
 
-    if args.remove_unused:
-        manager.remove_unused_groups(dry=not args.force)
-        sys.exit(0)
-
     if args.unused:
         # Print unused remote groups
         for grp in manager.unused_groups():
             print "- %s" % grp
+        sys.exit(0)
+
+    if args.remove_unused:
+        manager.remove_unused_groups(dry=not args.force)
         sys.exit(0)
 
     if not args.config:
@@ -111,6 +112,7 @@ def cli():
     # Parameters for manager.apply_diff()
     params = {
         'dry' : not args.force,
+        'threshold': args.threshold,
         'remove_rules' : False if args.no_remove else True,
         'remove_groups' : False if args.no_remove_groups or args.no_remove else True,
     }

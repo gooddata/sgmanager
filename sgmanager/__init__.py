@@ -14,6 +14,10 @@ global ec2
 lg = logging.getLogger(__name__)
 
 
+class ThresholdException(Exception):
+    friendly = True
+    pass
+
 class SGManager(object):
     def __init__(self, ec2_connection=None, vpc=False, only_groups=[]):
         """
@@ -99,12 +103,17 @@ class SGManager(object):
         """
         return self.local.dump_groups()
 
-    def apply_diff(self, remove_groups=True, remove_rules=True, dry=False):
+    def apply_diff(self, remove_groups=True, remove_rules=True, dry=False, threshold=None):
         """
         Apply diff between local and remote groups
         """
         # Diff groups
         sg_added, sg_removed, sg_updated, sg_unchanged = self.local.compare(self.remote)
+        if threshold:
+            len_changes = len(sg_updated) + len(sg_added) + len(sg_removed)
+            changes_perc = (float(len_changes) / (float(len(sg_unchanged)) + float(len_changes))) * 100
+            if (float(changes_perc) >= float(threshold)):
+                raise ThresholdException("Threshold for changes reached, expected: < %s %, actual: %s %" % (threshold, round(changes_perc,2)))
 
         # Create new groups
         # Firstly create all groups, then add all rules (to satisfy between group relations)
