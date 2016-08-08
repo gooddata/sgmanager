@@ -113,7 +113,9 @@ class SGManager(object):
             len_changes = len(sg_updated) + len(sg_added) + len(sg_removed)
             changes_perc = (float(len_changes) / (float(len(sg_unchanged)) + float(len_changes))) * 100
             if (float(changes_perc) >= float(threshold)):
-                raise ThresholdException("Threshold for changes reached, expected: < %s %, actual: %s %" % (threshold, round(changes_perc,2)))
+                raise ThresholdException(
+                    "Threshold for changes reached, expected: < %s %%,"
+                    " actual: %s %%" % (threshold, round(changes_perc, 2)))
 
         # Create new groups
         # Firstly create all groups, then add all rules (to satisfy between group relations)
