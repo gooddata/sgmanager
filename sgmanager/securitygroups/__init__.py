@@ -145,6 +145,19 @@ class SecurityGroups(object):
 
         return self.groups
 
+    def _validate(self, rule, group_name):
+        """
+        Validate given rule
+        """
+        for keyword in rule:
+            # validate used keywords
+            if keyword not in ['cidr', 'groups', 'port', 'protocol', 'port_from', 'port_to']:
+                raise InvalidConfiguration("Unknown keyword: %s in group: %s" % (keyword, group_name))
+            # either port or port_from & port_to is mandatory
+            if not ('port' in rule or ('port_to' in rule and 'port_from' in rule)):
+                raise InvalidConfiguration("Either port or (port_from, port_to) must be in rule: %s in group: %s"
+                                           % (rule, group_name))
+
     def _load_sgroup(self, name, group, check_mode='strict'):
         """
         Return SGroup object with assigned rules
@@ -176,6 +189,7 @@ class SecurityGroups(object):
         # Dive into group's rules and create srule objects
         if group.has_key('rules'):
             for rule in group['rules']:
+                self._validate(rule, sgroup.name)
                 self._load_rule(sgroup, rule)
 
         return sgroup
