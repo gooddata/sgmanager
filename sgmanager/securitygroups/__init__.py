@@ -149,13 +149,31 @@ class SecurityGroups(object):
         """
         Validate given rule
         """
+        def _validate_port(item):
+            return ('port' in item or ('port_to' in item and 'port_from' in item))
+
         for keyword in rule:
             # validate used keywords
             if keyword not in ['cidr', 'groups', 'port', 'protocol', 'port_from', 'port_to', 'to']:
                 raise InvalidConfiguration("Unknown keyword: %s in group: %s" % (keyword, group_name))
             # either port or port_from & port_to is mandatory
-            if not ('port' in rule or ('port_to' in rule and 'port_from' in rule)):
-                raise InvalidConfiguration("Either port or (port_from, port_to) must be in rule: %s in group: %s"
+
+        # you can specify a rule like this
+        #- cidr: [a.b.c.d / 32]
+        #  groups: [sg-group-1]
+        #  to:
+        #  - {port: 100, protocol: tcp}
+        #  - {port: 101, protocol: udp}
+        #  - {port: 102, protocol: tcp}
+        #
+        # that means, every rule from 'to' section has to be checked for validity too 
+        if 'to' in rule:
+            rules_array_ok = all(_validate_port(rule_array) for rule_array in rule['to'])
+        else:
+            rules_array_ok = False
+
+        if not (_validate_port(rule) or rules_array_ok):
+            raise InvalidConfiguration("Either port or (port_from, port_to) must be in rule: %s in group: %s"
                                            % (rule, group_name))
 
     def _load_sgroup(self, name, group, check_mode='strict'):
