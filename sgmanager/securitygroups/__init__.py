@@ -151,7 +151,7 @@ class SecurityGroups(object):
         """
         for keyword in rule:
             # validate used keywords
-            if keyword not in ['cidr', 'groups', 'port', 'protocol', 'port_from', 'port_to']:
+            if keyword not in ['cidr', 'groups', 'port', 'protocol', 'port_from', 'port_to', 'to']:
                 raise InvalidConfiguration("Unknown keyword: %s in group: %s" % (keyword, group_name))
             # either port or port_from & port_to is mandatory
             if not ('port' in rule or ('port_to' in rule and 'port_from' in rule)):
