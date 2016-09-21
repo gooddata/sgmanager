@@ -221,8 +221,8 @@ class SecurityGroups(object):
 
                 _expand_to_and_load(sgroup, new_rule)
 
-            if 'cidr' not in rule and 'groups' not in rule:
-                _expand_to_and_load(sgroup, rule)
+        if 'cidr' not in rule and 'groups' not in rule:
+            _expand_to_and_load(sgroup, rule)
 
     def _yaml_include(self, loader, node):
         """
