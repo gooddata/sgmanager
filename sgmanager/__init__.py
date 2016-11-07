@@ -111,6 +111,15 @@ class SGManager(object):
         sg_added, sg_removed, sg_updated, sg_unchanged = self.local.compare(self.remote)
         if threshold:
             len_changes = len(sg_updated) + len(sg_added) + len(sg_removed)
+            # don't count in threshold groups to be removed if --no-remove-groups specified
+            if not remove_groups:
+                len_changes -= len(sg_removed)
+            if not remove_rules:
+                for group in sg_updated:
+                    added, removed, unchanged = group.compare(self.remote.groups[group.name])
+                    # if there is nothing to add we don't modify the group, don't count in threshold
+                    if len(added) == 0:
+                        len_changes -= 1
             changes_perc = (float(len_changes) / (float(len(sg_unchanged)) + float(len_changes))) * 100
             if (float(changes_perc) >= float(threshold)):
                 raise ThresholdException(
