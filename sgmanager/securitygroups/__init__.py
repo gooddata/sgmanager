@@ -290,7 +290,7 @@ class SecurityGroups(object):
                 continue
             if isinstance(value, dict) and dict1.has_key(key):
                 # We have another dictionary to update recursively
-                dict1[key] = dict_update(dict1[key], value, overwrite)
+                dict1[key] = self._dict_update(dict1[key], value, overwrite)
             else:
                 if dict1.has_key(key) and not overwrite:
                     # We don't want to overwrite values in dict1
