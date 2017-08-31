@@ -31,11 +31,14 @@ class SecurityGroups(object):
 
         self.groups = {}
         self.config = None
-        try:
-            self.owner_id = ec2.get_all_security_groups('default')[0].owner_id
-            lg.debug("Default owner id: %s" % self.owner_id)
-        except Exception as e:
-            lg.error("Can't load default security group to lookup owner id: %s" % e)
+        self.owner_id = None
+        if ec2:
+            try:
+                self.owner_id = ec2.get_all_security_groups('default')[0].owner_id
+                lg.debug("Default owner id: %s" % self.owner_id)
+            except Exception as e:
+                lg.error("Can't load default security group to lookup"
+                    "owner id: %s" % e)
 
     def load_remote_groups(self):
         """
@@ -133,15 +136,19 @@ class SecurityGroups(object):
                 raise InvalidConfiguration("Can't parse config file %s: error at line %s, column %s" % (config, mark.line+1, mark.column+1))
             else:
                 raise InvalidConfiguration("Can't parse config file %s: %s" % (config, e))
+        # Empty config file is considered invalid
+        if not conf:
+            raise InvalidConfiguration("Config file %s is empty" % config)
 
         # Remove include keys
         conf = self._fix_include(conf)
 
         lg.debug("Loading local groups")
-        for name, group in conf.iteritems():
-            if not self.only_groups or name in self.only_groups:
-                # Initialize SGroup object
-                self.groups[name] = self._load_sgroup(name, group, check_mode=mode)
+        if isinstance(conf, dict):
+            for name, group in conf.iteritems():
+                if not self.only_groups or name in self.only_groups:
+                    # Initialize SGroup object
+                    self.groups[name] = self._load_sgroup(name, group, check_mode=mode)
 
         return self.groups
 
@@ -364,6 +371,26 @@ class SecurityGroups(object):
                 removed.append(group)
 
         return added, removed, updated, unchanged
+
+    def check_validity(self):
+        """
+        Checks if groups mentioned in the rules are defined
+        and if ip address is in the correct format (including mask)
+        """
+        for name, ref in self.groups.iteritems():
+            for rule in ref.rules:
+                for group in rule.groups:
+                    if not self.has_group(group['name']):
+                        raise InvalidConfiguration("Group %s referenced by "
+                            "group %s does not exist in the config file"
+                            % (group['name'], name))
+                if rule.cidr:
+                    for ip in rule.cidr:
+                        if not re.match('^([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\.'
+                            '([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\.([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\.'
+                            '([01]?\\d\\d?|2[0-4]\\d|25[0-5])\/(\\d|[1-2]\\d|3[0-2])$', ip):
+                                raise InvalidConfiguration("Wrong format of ip address '%s' "
+                                "in the config file" % ip)
 
 
 class YamlDumper(yaml.SafeDumper):

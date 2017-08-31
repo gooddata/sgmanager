@@ -18,6 +18,7 @@ class ThresholdException(Exception):
     friendly = True
     pass
 
+
 class SGManager(object):
     def __init__(self, ec2_connection=None, vpc=False, only_groups=[]):
         """
@@ -27,16 +28,19 @@ class SGManager(object):
         """
         global ec2
 
-        if not ec2_connection:
+        if isinstance(ec2_connection, boto.ec2.connection.EC2Connection):
             # Use supplied connection
+            ec2 = ec2_connection
+        elif ec2_connection:
+            # Try to connect on our own
             try:
                 ec2 = boto.connect_ec2()
             except boto.exception.NoAuthHandlerFound as e:
                 e.friendly = True
                 raise
         else:
-            # Try to connect on our own
-            ec2 = ec2_connection
+            # Continue without connection
+            ec2 = None
 
         if vpc:
             lg.debug("Working only with VPC security groups")
@@ -89,6 +93,7 @@ class SGManager(object):
         """
         self.local = SecurityGroups(vpc=self.vpc, only_groups=self.only_groups)
         self.local.load_local_groups(config, mode)
+        self.local.check_validity()
         return self.local
 
     def dump_remote_groups(self):

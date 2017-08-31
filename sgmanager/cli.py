@@ -10,6 +10,7 @@ from urlparse import urlparse
 import boto
 
 from sgmanager import SGManager
+from sgmanager.exceptions import InvalidConfiguration
 import sgmanager.logger
 
 lg_root = sgmanager.logger.init(name='', syslog=False)
@@ -38,7 +39,7 @@ def cli():
     Main CLI entrance
     """
     parser = argparse.ArgumentParser(description='Security groups management tool')
-    parser.add_argument('-c', '--config', help='Config file to use')
+    parser.add_argument('-c', '--config', help='Config file to use', required=True)
     parser.add_argument('--vpc', action='store_true', help='Work with VPC groups, otherwise only non-VPC')
     parser.add_argument('--dump', action='store_true', help='Dump remote groups and exit')
     parser.add_argument('--unused', action='store_true', help='Dump groups not used by any instance')
@@ -58,6 +59,7 @@ def cli():
     parser.add_argument('--insecure', action='store_true', help='Do not validate SSL certs')
     parser.add_argument('--threshold', help='Maximum threshold to use for add/rm of groups/rules in percentage (default: 15)', default=15)
     parser.add_argument('--cert', help='Path to CA certificates (eg. /etc/pki/cacert.pem)')
+    parser.add_argument('--validate', action='store_true', help='Dry-run, validates the config file')
     args = parser.parse_args()
 
     if args.quiet:
@@ -71,9 +73,36 @@ def cli():
         lg.setLevel(logging.DEBUG)
         lg_root.setLevel(logging.DEBUG)
 
+    mode = None
+    if args.mode in ('a', 'ascii'):
+        mode = 'ascii'
+    elif args.mode in ('s', 'strict'):
+        mode = 'strict'
+    elif args.mode in ('v', 'vpc') or args.vpc:
+        mode = 'vpc'
+
+    if not mode:
+        lg.error('Invalid mode "%s" selected' % args.mode)
+        sys.exit(1)
+
     # Initialize SGManager
-    ec2 = connect_ec2(args)
+    if not args.validate:
+        ec2 = connect_ec2(args)
+    else:
+        ec2 = None
+        args.only_groups = None
+
     manager = SGManager(ec2, vpc=args.vpc, only_groups=args.only_groups)
+
+    try:
+        manager.load_local_groups(args.config, mode)
+    except InvalidConfiguration as e:
+        lg.error("Invalid config file: %s" %e)
+        sys.exit(1)
+
+    if args.validate:
+        sys.exit(0)
+
     manager.load_remote_groups()
 
     if args.dump:
@@ -90,24 +119,6 @@ def cli():
     if args.remove_unused:
         manager.remove_unused_groups(dry=not args.force)
         sys.exit(0)
-
-    if not args.config:
-        lg.error('No config file supplied')
-        sys.exit(1)
-
-    mode = False
-    if args.mode in ('a', 'ascii'):
-        mode = 'ascii'
-    if args.mode in ('s', 'strict'):
-        mode = 'strict'
-    if args.mode in ('v', 'vpc') or args.vpc:
-        mode = 'vpc'
-
-    if not mode:
-        lg.error('Invalid mode "%s" selected' % args.mode)
-        sys.exit(1)
-
-    manager.load_local_groups(args.config, mode)
 
     # Parameters for manager.apply_diff()
     params = {
