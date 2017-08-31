@@ -2,6 +2,8 @@ VERSION := $(shell python setup.py --version)
 
 all: build
 
+tarball: sources
+
 sources: clean
 	$(eval TMPDIR := $(shell mktemp -d))
 	# Populate the spec file with correct version from setup.py
