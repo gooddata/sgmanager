@@ -1,7 +1,7 @@
 %global with_check 0
 
 Name:           sgmanager
-Version:        1.4.5
+Version:        1.4.6
 Release:        1%{?dist}
 Summary:        Tooling for EC2 security groups management
 
@@ -23,7 +23,7 @@ Tooling for management of security groups. Load local configuration, load
 remote groups and apply differences.
 
 %prep
-%setup -q -n sgmanager
+%setup -q -c
 
 %build
 %{__python} setup.py build
