@@ -5,11 +5,7 @@ all: build
 tarball: sources
 
 sources: clean
-	$(eval TMPDIR := $(shell mktemp -d))
-	# Populate the spec file with correct version from setup.py
-	tar czf "$(TMPDIR)/sgmanager.tar.gz" ../sgmanager
-	mv "$(TMPDIR)/sgmanager.tar.gz" sgmanager.tar.gz
-	rmdir "$(TMPDIR)"
+	tar czvf sgmanager.tar.gz $(shell git ls-tree  --name-only HEAD)
 
 build install test:
 	python setup.py $@
