@@ -32,8 +32,8 @@ version:
 	# Helps keeping version consistent both in setup.py and sgmanager.spec
 	@echo "Current version: $(VERSION)"
 	@read -p "Type new version: " newversion; \
-	sed -i -e "s/    'version': .*/    'version': '$$newversion',/" setup.py; \
-	sed -i -e "s,Version:	.*,Version:	$$newversion," sgmanager.spec
+	sed -i -e "s/version=.*/version='$$newversion',/" setup.py; \
+	sed -i -e "s/Version:\(\s*\).*/Version:\1$$newversion/" sgmanager.spec
 
 tag:
 	git tag "v$(VERSION)"
