@@ -138,7 +138,7 @@ class SecurityGroups(object):
                 raise InvalidConfiguration("Can't parse config file %s: %s" % (config, e))
         # Empty config file is considered invalid
         if not conf:
-            raise InvalidConfiguration("Config file %s is empty" % config)
+            raise InvalidConfiguration("Config file is empty")
 
         # Remove include keys
         conf = self._fix_include(conf)

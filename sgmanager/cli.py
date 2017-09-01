@@ -59,7 +59,7 @@ def cli():
     parser.add_argument('--insecure', action='store_true', help='Do not validate SSL certs')
     parser.add_argument('--threshold', help='Maximum threshold to use for add/rm of groups/rules in percentage (default: 15)', default=15)
     parser.add_argument('--cert', help='Path to CA certificates (eg. /etc/pki/cacert.pem)')
-    parser.add_argument('--validate', action='store_true', help='Dry-run, validates the config file')
+    parser.add_argument('--validate', action='store_true', help='Only validate config')
     args = parser.parse_args()
 
     if args.quiet:
@@ -97,7 +97,7 @@ def cli():
     try:
         manager.load_local_groups(args.config, mode)
     except InvalidConfiguration as e:
-        lg.error("Invalid config file: %s" %e)
+        lg.error("Invalid config file %s: %s", args.config, e)
         sys.exit(1)
 
     if args.validate:
