@@ -22,7 +22,7 @@ def main():
     """
     try:
         cli()
-    except (KeyboardInterrupt, SystemExit):
+    except KeyboardInterrupt:
         # User interruption
         sys.exit(1)
     except Exception as e:
