@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2007-2013, GoodData(R) Corporation. All rights reserved
 
+import glob
 import os
 import re
 import logging
@@ -122,6 +123,7 @@ class SecurityGroups(object):
         lg.debug("Loading local configuragion")
         self.config = config
         yaml.add_constructor('!include', self._yaml_include)
+        yaml.add_constructor('!include_dir', self._yaml_include_dir)
 
         try:
             with open(config, 'r') as fp:
@@ -173,7 +175,7 @@ class SecurityGroups(object):
         #  - {port: 101, protocol: udp}
         #  - {port: 102, protocol: tcp}
         #
-        # that means, every rule from 'to' section has to be checked for validity too 
+        # that means, every rule from 'to' section has to be checked for validity too
         if 'to' in rule:
             rules_array_ok = all(_validate_port(rule_array) for rule_array in rule['to'])
         else:
@@ -249,19 +251,47 @@ class SecurityGroups(object):
         if 'cidr' not in rule and 'groups' not in rule:
             _expand_to_and_load(sgroup, rule)
 
+    def _add_config_prefix(self, path):
+        config_dir = os.path.dirname(self.config)
+        if config_dir:
+            return os.path.join(config_dir, path)
+        return path
+
     def _yaml_include(self, loader, node):
         """
         Include another yaml file from main file
         This is usually done by registering !include tag
         """
-        filepath = "%s%s" % ('%s/' % os.path.dirname(self.config) \
-                                if os.path.dirname(self.config) else '',
-                             node.value)
+        filepath = node.value
+        if not os.path.exists(filepath):
+            filepath = self._add_config_prefix(node.value)
         try:
             with open(filepath, 'r') as inputfile:
                 return yaml.load(inputfile)
         except IOError as e:
-            raise InvalidConfiguration("Can't include config file %s: %s" % (filepath, e))
+            raise InvalidConfiguration(
+                "Can't include config file %s: %s" % (filepath, e))
+
+    def _yaml_include_dir(self, loader, node):
+        """
+        Include another directory of yaml files
+        This is done by registering the !include_dir tag
+        """
+        filepath = self._add_config_prefix(node.value)
+
+        if not os.path.exists(filepath):
+            return
+
+        yamls = glob.glob(os.path.join(filepath, '*.yaml'))
+        if not yamls:
+            return
+
+        content = '\n'
+
+        for path in yamls:
+            content += '    - !include %s\n' % path
+
+        return yaml.load(content)
 
     def _fix_include(self, cfg):
         """ Special hack to use included parameters correctly """
