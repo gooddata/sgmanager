@@ -135,7 +135,9 @@ class SecurityGroups(object):
             # Error while parsing YAML
             if hasattr(e, 'problem_mark'):
                 mark = e.problem_mark
-                raise InvalidConfiguration("Can't parse config file %s: error at line %s, column %s" % (config, mark.line+1, mark.column+1))
+                raise InvalidConfiguration(
+                        "Can't parse config file %s: %s at line %s, column %s" % (
+                            mark.name, e.problem, mark.line + 1, mark.column + 1))
             else:
                 raise InvalidConfiguration("Can't parse config file %s: %s" % (config, e))
         # Empty config file is considered invalid
