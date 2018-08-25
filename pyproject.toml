@@ -1,0 +1,37 @@
+[build-system]
+requires = ["flit"]
+build-backend = "flit.buildapi"
+
+[tool.flit.metadata]
+module = "sgmanager"
+author = "GoodData Corporation"
+author-email = "python@gooddata.com"
+maintainer = "Igor Gnatenko"
+maintainer-email = "igor.gnatenko@gooddata.com"
+home-page = "https://github.com/gooddata/sgmanager"
+description-file = "README.md"
+license = "BSD-3-Clause"
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Environment :: Console",
+  "Environment :: OpenStack",
+  "Intended Audience :: System Administrators",
+  "License :: OSI Approved :: BSD License",
+  "Natural Language :: English",
+  "Operating System :: POSIX",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.6",
+  "Programming Language :: Python :: 3.7",
+  "Topic :: System :: Networking :: Firewalls",
+  "Topic :: Utilities",
+]
+requires = [
+  "openstacksdk",
+  "orderedset",
+  "PyYAML",
+]
+requires-python = ">=3.6"
+
+[tool.flit.scripts]
+sgmanager = "sgmanager.cli:main"
