@@ -79,6 +79,44 @@ class SGManager:
                                 f' not a {type(value)}')
             return value
 
+        if 'include' in conf:
+            # DEPRECATED
+            def dict_update(dict1, dict2, overwrite=False, skip_none=False):
+                dict1 = dict(dict1)
+                dict2 = dict(dict2)
+
+                for key, value in dict2.items():
+                    if value is None and skip_none:
+                        continue
+                    if isinstance(value, dict) and key in dict1:
+                        dict1[key] = dict_update(dict1[key], value, overwrite)
+                    else:
+                        if key in dict1 and not overwrite:
+                            continue
+                        else:
+                            dict1[key] = value
+
+                return dict1
+
+            def fix_include(cfg):
+                for key, value in list(cfg.items()):
+                    if key == 'include':
+                        for include in value:
+                            if isinstance(include, dict):
+                                include = fix_include(include)
+                            cfg = dict_update(cfg, include)
+                        cfg.pop('include')
+                        continue
+
+                    if isinstance(value, dict):
+                        cfg[key] = fix_include(value)
+
+                return cfg
+
+            conf = {'document': 'sgmanager-groups',
+                    'version': 1,
+                    'data': [{k: v} for k, v in fix_include(conf).items()]}
+
         document = pop_with_type(conf, 'document', str)
         if document != 'sgmanager-groups':
             raise Exception(f'Document type {document!r} must be "sgmanager-groups"')

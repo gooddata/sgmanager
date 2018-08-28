@@ -27,12 +27,15 @@ class LocalRepresenter(SafeRepresenter):
 class LocalLoader(SafeLoader):
     '''Safe YAML loader which supports search_path.'''
     def __init__(self, *args, **kwargs):
+        path = kwargs.pop('search_path', None)
+
         super().__init__(*args, **kwargs)
 
-        if hasattr(self.stream, 'name'):
-            path = pathlib.Path(self.stream.name).parent
-        else:
-            path = pathlib.Path.cwd()
+        if path is None:
+            if hasattr(self.stream, 'name'):
+                path = pathlib.Path(self.stream.name).parent
+            else:
+                path = pathlib.Path.cwd()
         self.search_path = path.resolve()
 
 
@@ -84,6 +87,35 @@ class YamlInclude(BaseYAMLObject):
                 None,
                 f'expected either a sequence or scalar node, {node.id} found',
                 node.start_mark)
+
+
+class DeprecatedYamlInclude(BaseYAMLObject):
+    yaml_tag = '!include'
+
+    @classmethod
+    def from_yaml(cls, loader, node):
+        fpath = loader.search_path / loader.construct_yaml_str(node)
+        with open(fpath, 'r') as fp:
+            return yaml.load(fp, functools.partial(type(loader), search_path=loader.search_path))
+
+
+class DeprecatedYamlIncludeDir(BaseYAMLObject):
+    yaml_tag = '!include_dir'
+
+    @classmethod
+    def from_yaml(cls, loader, node):
+        dpath = loader.search_path / loader.construct_yaml_str(node)
+        if not dpath.is_dir():
+            raise yaml.constructor.ConstructorError(
+                None,
+                None,
+                f'{dpath} is not a directory',
+                node.start_make)
+        yamls = list(dpath.glob('*.yaml'))
+        if not yamls:
+            return
+        return yaml.load('\n'.join(f'- !include {yml}' for yml in yamls),
+                         functools.partial(type(loader), search_path=loader.search_path))
 
 
 def load(stream, **kwargs):

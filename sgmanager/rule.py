@@ -97,6 +97,12 @@ class Rule(Base):
         logger.debug(f'Creating local rule: {kwargs}')
         kwargs = dict(kwargs)
 
+        # DEPRECATED
+        if 'port_from' in kwargs:
+            kwargs['port_min'] = kwargs.pop('port_from')
+        if 'port_to' in kwargs:
+            kwargs['port_max'] = kwargs.pop('port_to')
+
         port = kwargs.pop('port', None)
         if port is not None:
             port_min = kwargs.pop('port_min', None)
@@ -186,8 +192,9 @@ class Rule(Base):
 
     @staticmethod
     def _check_port(port):
-        if port is None:
-            return port
+        # DEPRECATED: port == -1
+        if port is None or port == -1:
+            return None
         if 0 <= port < 65536:
             return port
 
