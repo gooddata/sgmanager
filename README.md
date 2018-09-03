@@ -16,6 +16,10 @@ Running from source tree can be done in 2 ways:
 
 Installation can be done using `flit install`. See `--help` from it.
 
+## Running tests
+
+`py.test-3 -vv`
+
 ## Supplying credentials
 
 There are [3 standard ways](https://docs.openstack.org/openstacksdk/latest/user/config/configuration.html)

@@ -37,4 +37,3 @@ data:
       - monitoring
       port: 22
       protocol: tcp
-
