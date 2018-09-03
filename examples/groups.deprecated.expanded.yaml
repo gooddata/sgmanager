@@ -1,0 +1,39 @@
+document: sgmanager-groups
+version: 1
+data:
+- default:
+    description: Default group
+    rules:
+    - cidr:
+      - 0.0.0.0/0
+      protocol: icmp
+- monitoring:
+    description: Monitoring from private networks
+    rules:
+    - cidr:
+      - 10.0.0.0/8
+      port: 5666
+      protocol: tcp
+    - cidr:
+      - 172.16.0.0/12
+      port: 5666
+      protocol: tcp
+    - cidr:
+      - 10.0.0.0/8
+      port: 161
+      protocol: udp
+    - cidr:
+      - 172.16.0.0/12
+      port: 161
+      protocol: udp
+- ssh:
+    description: SSH from monitoring networks and different private network
+    rules:
+    - cidr:
+      - 192.168.0.0/16
+      port: 22
+      protocol: tcp
+    - groups:
+      - monitoring
+      port: 22
+      protocol: tcp

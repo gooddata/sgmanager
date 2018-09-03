@@ -1,0 +1,15 @@
+monitoring:
+  description: Monitoring from private networks
+  rules:
+  - cidr: !include monitoring-networks.yaml
+    to:
+    - {port: 5666, protocol: tcp}
+    - {port: 161, protocol: udp}
+
+ssh:
+  description: SSH from monitoring networks and different private network
+  rules:
+  - cidr: [192.168.0.0/16]
+    groups: [monitoring]
+    port: 22
+    protocol: tcp

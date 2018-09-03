@@ -1,6 +1,5 @@
-*.swp
-*.o
-*.pyc
-build/
-dist/
-*.egg-info/
+clouds.yaml
+
+/.pytest_cache/
+/dist/
+__pycache__/

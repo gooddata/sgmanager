@@ -1,0 +1,70 @@
+# Document type identifier
+document: sgmanager-groups
+version: 1
+data:
+  # List of security groups.
+  # Key is the name of the group.
+  # Value is the settings of the group.
+  - default:
+      # Description, optional.
+      # Default: Group name.
+      description: Default group
+      # List of rules, optional.
+      # Default: Empty.
+      rules:
+      -
+        # CIDR, optional.
+        # Possible values: Any valid CIDR (https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing).
+        # Default:
+        # - [] if groups are specified.
+        # - [0.0.0.0/0] if ethertype is not specified or is set to IPv4.
+        # - [::/0] if ethertype is set to IPv6.
+        cidr:
+        - 0.0.0.0/0
+        # Groups, optional.
+        # Default: [].
+        groups: []
+        # Direction, optional.
+        # Possible values: ingress, egress.
+        # Default: ingress.
+        direction: ingress
+        # Ethernet type, optional.
+        # Possible values: IPv4, IPv6.
+        # Default value:
+        # - IPv4 if CIDR is ipv4 network.
+        # - IPv6 if CIDR is ipv6 network.
+        ethertype: IPv4
+        # Protocol, optional.
+        # Possible values: icmp, tcp, udp.
+        # Default value: null.
+        # Setting port with ICMP protocol will cause an error.
+        protocol: icmp
+        # Port, optional.
+        # Possible values: 0 <= port <= 65535
+        # Default value: null.
+        # If port_min/port_max are set, this takes precedence.
+        # Not setting port when protocol is not ICMP will cause an error.
+        port: null
+        # Port range (min), optional.
+        # Possible values: 0 <= port <= 65535
+        # Default value: null
+        # If port_max is set, this is not optional.
+        port_min: null
+        # Port range (max), optional.
+        # Possible values: 0 <= port <= 65535
+        # Default value: null
+        # If port_min is set, this is not optional.
+        port_max: null
+  - monitoring:
+      description: Monitoring from private networks
+      rules:
+      # You can use !include for including some pieces of configuration.
+      - cidr: !include: monitoring-networks.yaml
+        # For multiple rules within one rule it's possible to use 'to'.
+        # Same keys can be used to set up rule.
+        # For each of the items, new rule will be created.
+        to:
+        - {port: 5666, protocol: tcp} # Icinga
+        - {port: 161, protocol: udp}  # SNMP
+  # Or use !include even here.
+  - !include: ssh.yaml

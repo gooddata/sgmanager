@@ -1,189 +1,95 @@
-# -*- coding: utf-8 -*-
-# Copyright (C) 2007-2013, GoodData(R) Corporation. All rights reserved
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright © 2013-2018, GoodData Corporation. All rights reserved.
 
-import sys
-import os
 import argparse
 import logging
-from urlparse import urlparse
+import pathlib
+import sys
 
-import boto
+import openstack
+from openstack.config import OpenStackConfig
 
-from sgmanager import SGManager
-from sgmanager.exceptions import InvalidConfiguration
-import sgmanager.logger
+from .manager import SGManager
+from .utils import dump_groups, validate_groups
 
-lg_root = sgmanager.logger.init(name='', syslog=False)
-lg = logging.getLogger('gdc.sgmanager')
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger()
 
-def main():
-    """
-    Main entrance
-    """
-    try:
-        cli()
-    except KeyboardInterrupt:
-        # User interruption
-        sys.exit(1)
-    except Exception as e:
-        if getattr(e, 'friendly', False):
-            # Friendly exceptions - just log and exit
-            lg.error(e)
-            sys.exit(1)
+
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv[1:]
+
+    config = OpenStackConfig()
+
+    parser = argparse.ArgumentParser()
+    config.register_argparse_arguments(parser, argv)
+
+    cmd = parser.add_subparsers(
+        title='Available Commands',
+        dest='command',
+        required=True,
+    )
+
+    cmd_dump = cmd.add_parser(
+        'dump',
+        help='Dump configuration',
+    )
+    cmd_dump.add_argument(
+        'config',
+        nargs='?',
+        type=pathlib.Path,
+    )
+
+    def dump(manager, args):
+        if args.config is None:
+            # Dump remote groups
+            manager.connection = openstack.connect(config=args)
+            manager.load_remote_groups()
+            groups = manager.remote
         else:
-            # Evil exceptions, print stack trace
-            raise
+            # Dump local groups
+            manager.load_local_groups(args.config)
+            groups = manager.local
+            validate_groups(groups)
 
-def cli():
-    """
-    Main CLI entrance
-    """
-    parser = argparse.ArgumentParser(description='Security groups management tool')
-    parser.add_argument('-c', '--config', help='Config file to use', required=True)
-    parser.add_argument('--vpc', action='store_true', help='Work with VPC groups, otherwise only non-VPC')
-    parser.add_argument('--dump', action='store_true', help='Dump remote groups and exit')
-    parser.add_argument('--unused', action='store_true', help='Dump groups not used by any instance')
-    parser.add_argument('--remove-unused', action='store_true', help='Only remove groups that are not used by any instance')
-    parser.add_argument('-f', '--force', action='store_true', help='Force action (otherwise run dry-run)')
-    parser.add_argument('-q', '--quiet', action='store_true', help='Be quiet, print only WARN/ERROR output')
-    parser.add_argument('-d', '--debug', action='store_true', help='Debug mode')
-    parser.add_argument('--no-remove', action='store_true', help='Do not remove any groups or rules, only add')
-    parser.add_argument('--no-remove-groups', action='store_true', help='Do not remove any groups, only add')
-    parser.add_argument('--only-groups', nargs='+', help='Only manage following list of groups, space-separated')
-    parser.add_argument('-I', '--ec2-access-key', help='EC2 Access Key to use')
-    parser.add_argument('-S', '--ec2-secret-key', help='EC2 Secret Key to use')
-    parser.add_argument('-R', '--ec2-region', help='Region to use (default us-east-1)', default='us-east-1')
-    parser.add_argument('-U', '--ec2-url', help='EC2 API URL to use (otherwise use default)')
-    parser.add_argument('-t', '--timeout', type=int, default=120, help='Set socket timeout (default 120s)')
-    parser.add_argument('-m', '--mode', help='Mode for validating group name and description (default a)', default='a')
-    parser.add_argument('--insecure', action='store_true', help='Do not validate SSL certs')
-    parser.add_argument('--threshold', help='Maximum threshold to use for add/rm of groups/rules in percentage (default: 15)', default=15)
-    parser.add_argument('--cert', help='Path to CA certificates (eg. /etc/pki/cacert.pem)')
-    parser.add_argument('--validate', action='store_true', help='Only validate config')
+        print(dump_groups(groups, default_flow_style=False, width=-1))
+
+    cmd_update = cmd.add_parser(
+        'update',
+        help='Update configuration',
+    )
+    cmd_update.add_argument(
+        '-f', '--force',
+        dest='dry_run',
+        action='store_false',
+        help='Disable dry-run mode',
+    )
+    cmd_update.add_argument(
+        '-t', '--threshold',
+        type=int,
+        default=15,
+        help='Maximum threshold to us for adding/removing'
+             ' groups/rules in a percentage')
+    cmd_update.add_argument(
+        '--no-remove',
+        dest='remove',
+        action='store_false',
+        help='Do not remove any groups or rules')
+    cmd_update.add_argument(
+        'config',
+        type=pathlib.Path,
+    )
+
+    def update(manager, args):
+        manager.connection = openstack.connect(config=args)
+        manager.load_local_groups(args.config)
+        manager.load_remote_groups()
+        manager.update_remote_groups(dry_run=args.dry_run,
+                                     threshold=args.threshold,
+                                     remove=args.remove)
+
     args = parser.parse_args()
 
-    if args.quiet:
-        lg.setLevel(logging.WARN)
-        lg_root.setLevel(logging.WARN)
-    else:
-        lg.setLevel(logging.INFO)
-        lg_root.setLevel(logging.INFO)
-
-    if args.debug:
-        lg.setLevel(logging.DEBUG)
-        lg_root.setLevel(logging.DEBUG)
-
-    mode = None
-    if args.mode in ('a', 'ascii'):
-        mode = 'ascii'
-    elif args.mode in ('s', 'strict'):
-        mode = 'strict'
-    elif args.mode in ('v', 'vpc') or args.vpc:
-        mode = 'vpc'
-
-    if not mode:
-        lg.error('Invalid mode "%s" selected' % args.mode)
-        sys.exit(1)
-
-    # Initialize SGManager
-    if not args.validate:
-        ec2 = connect_ec2(args)
-    else:
-        ec2 = None
-        args.only_groups = None
-
-    manager = SGManager(ec2, vpc=args.vpc, only_groups=args.only_groups)
-
-    try:
-        manager.load_local_groups(args.config, mode)
-    except InvalidConfiguration as e:
-        lg.error("Invalid config file %s: %s", args.config, e)
-        sys.exit(1)
-
-    if args.validate:
-        sys.exit(0)
-
-    manager.load_remote_groups()
-
-    if args.dump:
-        # Only dump remote groups and exit
-        print manager.dump_remote_groups()
-        sys.exit(0)
-
-    if args.unused:
-        # Print unused remote groups
-        for grp in manager.unused_groups():
-            print "- %s" % grp
-        sys.exit(0)
-
-    if args.remove_unused:
-        manager.remove_unused_groups(dry=not args.force)
-        sys.exit(0)
-
-    # Parameters for manager.apply_diff()
-    params = {
-        'dry' : not args.force,
-        'threshold': args.threshold,
-        'remove_rules' : False if args.no_remove else True,
-        'remove_groups' : False if args.no_remove_groups or args.no_remove else True,
-    }
-
-    manager.apply_diff(**params)
-
-def connect_ec2(args):
-    """
-    Connect to EC2 API by supplied arguments.
-    Return EC2 connection object.
-    """
-    # Prepare EC2 connection parameters
-    if not args.ec2_access_key:
-        if os.getenv('EC2_ACCESS_KEY'):
-            args.ec2_access_key = os.getenv('EC2_ACCESS_KEY')
-        elif os.getenv('AWS_ACCESS_KEY'):
-            args.ec2_access_key = os.getenv('AWS_ACCESS_KEY')
-        else:
-            lg.error("EC2 Access Key not supplied. Use EC2_ACCESS_KEY or AWS_ACCESS_KEY environment variables or command line option")
-            sys.exit(1)
-
-    if not args.ec2_secret_key:
-        if os.getenv('EC2_SECRET_KEY'):
-            args.ec2_secret_key = os.getenv('EC2_SECRET_KEY')
-        elif os.getenv('AWS_SECRET_KEY'):
-            args.ec2_secret_key = os.getenv('AWS_SECRET_KEY')
-        else:
-            lg.error("EC2 Secret Key not supplied. Use EC2_SECRET_KEY or AWS_SECRET_KEY environment variables or command line option")
-            sys.exit(1)
-
-    if not args.ec2_url:
-        if os.getenv('EC2_URL'):
-            args.ec2_url = os.getenv('EC2_URL')
-
-    if not boto.config.has_section('Boto'):
-        boto.config.add_section('Boto')
-
-    if args.timeout:
-        boto.config.set('Boto','http_socket_timeout', str(args.timeout))
-
-    if args.cert:
-        boto.config.set('Boto', 'ca_certificates_file', args.cert)
-
-    # Connect to EC2
-    if args.ec2_url:
-        # Special connection to EC2-compatible API (eg. OpenStack)
-        if args.insecure:
-            validate_certs = False
-        else:
-            validate_certs = True
-
-        lg.debug("Connecting to EC2: url=%s, validate_certs=%s" % (args.ec2_url, validate_certs))
-        ec2 = boto.connect_ec2_endpoint(url=args.ec2_url,
-                                validate_certs=validate_certs,
-                                aws_access_key_id=args.ec2_access_key,
-                                aws_secret_access_key=args.ec2_secret_key)
-    else:
-        # Standard connection to AWS EC2
-        ec2 = boto.ec2.connect_to_region(args.ec2_region,
-                                         aws_access_key_id=args.ec2_access_key,
-                                         aws_secret_access_key=args.ec2_secret_key)
-
-    return ec2
+    manager = SGManager()
+    locals()[args.command](manager, args)

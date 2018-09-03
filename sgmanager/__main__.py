@@ -1,8 +1,7 @@
-# -*- coding: utf-8 -*-
-# Copyright (C) 2007-2013, GoodData(R) Corporation. All rights reserved
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright © 2013-2018, GoodData Corporation. All rights reserved.
 
-
-from sgmanager.cli import main
+from .cli import main
 
 if __name__ == '__main__':
     main()
