@@ -28,8 +28,8 @@ def main(argv=None):
     cmd = parser.add_subparsers(
         title='Available Commands',
         dest='command',
-        required=True,
     )
+    cmd.required = True
 
     cmd_dump = cmd.add_parser(
         'dump',
