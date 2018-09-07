@@ -80,7 +80,7 @@ class SGManager:
             return value
 
         if 'include' in conf:
-            # DEPRECATED
+            # COMPAT
             def dict_update(dict1, dict2, overwrite=False, skip_none=False):
                 dict1 = dict(dict1)
                 dict2 = dict(dict2)

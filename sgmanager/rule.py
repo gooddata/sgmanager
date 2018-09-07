@@ -97,7 +97,7 @@ class Rule(Base):
         logger.debug(f'Creating local rule: {kwargs}')
         kwargs = dict(kwargs)
 
-        # DEPRECATED
+        # COMPAT
         if 'port_from' in kwargs:
             kwargs['port_min'] = kwargs.pop('port_from')
         if 'port_to' in kwargs:
@@ -192,7 +192,7 @@ class Rule(Base):
 
     @staticmethod
     def _check_port(port):
-        # DEPRECATED: port == -1
+        # COMPAT: port == -1
         if port is None or port == -1:
             return None
         if 0 <= port < 65536:
