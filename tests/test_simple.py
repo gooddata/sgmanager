@@ -7,13 +7,13 @@ from sgmanager.utils import dump_groups
 
 EXAMPLES_DIR = pathlib.Path(__file__).parent / 'examples'
 
+
 @pytest.mark.parametrize('config, config_expanded', (
     ('groups.yaml', 'groups.expanded.yaml'),
     ('groups.deprecated.yaml', 'groups.deprecated.expanded.yaml'),
 ))
 def test_parse(config, config_expanded):
     manager = SGManager()
-    conffile = EXAMPLES_DIR / config
     manager.load_local_groups(EXAMPLES_DIR / config)
     with open(EXAMPLES_DIR / config_expanded, 'r') as fp:
         expected = fp.read()
