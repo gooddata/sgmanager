@@ -5,6 +5,7 @@ import logging
 
 from orderedset import OrderedSet
 
+from .exceptions import InvalidConfiguration, ThresholdException
 from .group import Group
 from .rule import Rule
 from .utils import validate_groups
@@ -65,18 +66,18 @@ class SGManager:
 
         groups = []
         if not isinstance(conf, dict):
-            raise Exception(
+            raise InvalidConfiguration(
                 f'The topmost collection must be a mapping,'
                 f' not a {type(conf)}')
 
         def pop_with_type(kwargs, key, typ):
             prefix = f'Key {key!r}'
             if key not in kwargs:
-                raise Exception(f'{prefix} must be preset')
+                raise InvalidConfiguration(f'{prefix} must be preset')
             value = kwargs.pop(key)
             if not isinstance(value, typ):
-                raise Exception(f'{prefix} must have type {typ},'
-                                f' not a {type(value)}')
+                raise InvalidConfiguration(f'{prefix} must have type {typ},'
+                                           f' not a {type(value)}')
             return value
 
         if 'include' in conf:
@@ -119,19 +120,19 @@ class SGManager:
 
         document = pop_with_type(conf, 'document', str)
         if document != 'sgmanager-groups':
-            raise Exception(f'Document type {document!r} must be "sgmanager-groups"')
+            raise InvalidConfiguration(f'Document type {document!r} must be "sgmanager-groups"')
         version = pop_with_type(conf, 'version', int)
         if version != 1:
-            raise Exception(f'Document version {version!r} is not supported')
+            raise InvalidConfiguration(f'Document version {version!r} is not supported')
         data = pop_with_type(conf, 'data', list)
 
         if conf:
-            raise Exception(f'Extra keys: {", ".join(conf.keys())}')
+            raise InvalidConfiguration(f'Extra keys: {", ".join(conf.keys())}')
 
         for item in data:
             name, info = next(iter(item.items()))
             if len(item.items()) > 1:
-                raise Exception(
+                raise InvalidConfiguration(
                     f'Syntax error, for item named {name!r}. Missing indent?')
 
             groups.append(Group.from_local(**{'name': name, **info}))
@@ -225,8 +226,8 @@ class SGManager:
         if threshold is not None:
             changes_percentage = changes / (unchanged + changes) * 100
             if changes_percentage > threshold:
-                raise Exception(f'Amount of changes is {changes_percentage:f}%'
-                                f' which is more than allowed ({threshold:f}%)')
+                raise ThresholdException(f'Amount of changes is {changes_percentage:f}%'
+                                         f' which is more than allowed ({threshold:f}%)')
 
         if dry_run:
             return
