@@ -7,6 +7,51 @@ OpenStack Security Groups Management Tool.
 See [groups.yaml](examples/groups.yaml) for specification
 and its [expanded version](examples/groups.expanded.yaml).
 
+Sample configuration:
+
+```yaml
+document: sgmanager-groups
+version: 1
+data:
+  - test1:
+      description: SGManager testing security group
+      rules:
+      - cidr: [108.171.171.226/32]
+        port: 22
+        protocol: tcp
+      - groups: [test2]
+        port: 80
+        protocol: tcp
+  - test2:
+      description: SGManager testing security group number 2
+      rules:
+      - groups: [test1]
+        port_min: 50000
+        port_max: 50500
+        protocol: tcp
+```
+
+Sample configuration using old format:
+
+```yaml
+test1:
+  description: SGManager testing security group
+  rules:
+  - cidr: [108.171.171.226/32]
+    port: 22
+    protocol: tcp
+  - groups: [test2]
+    port: 80
+    protocol: tcp
+test2:
+  description: SGManager testing security group number 2
+  rules:
+  - groups: [test1]
+    port_from: 50000
+    port_to: 50500
+    protocol: tcp
+```
+
 ## Installation & Running
 
 Running from source tree can be done in 2 ways:

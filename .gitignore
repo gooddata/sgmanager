@@ -3,3 +3,7 @@ clouds.yaml
 /.pytest_cache/
 /dist/
 __pycache__/
+
+/sgmanager.spec
+/sgmanager-*.tar.gz
+/srpm/

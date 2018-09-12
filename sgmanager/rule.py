@@ -5,6 +5,7 @@ import ipaddress
 import itertools
 import logging
 
+from .exceptions import InvalidConfiguration
 from .utils import Base, StrEnum
 
 logger = logging.getLogger(__name__)
@@ -97,7 +98,7 @@ class Rule(Base):
         logger.debug(f'Creating local rule: {kwargs}')
         kwargs = dict(kwargs)
 
-        # DEPRECATED
+        # COMPAT
         if 'port_from' in kwargs:
             kwargs['port_min'] = kwargs.pop('port_from')
         if 'port_to' in kwargs:
@@ -108,7 +109,7 @@ class Rule(Base):
             port_min = kwargs.pop('port_min', None)
             port_max = kwargs.pop('port_max', None)
             if port_min is not None or port_max is not None:
-                raise Exception(f'Both port and port_min/port_max are specified')
+                raise InvalidConfiguration(f'Both port and port_min/port_max are specified')
             kwargs['port_min'] = kwargs['port_max'] = port
 
         return cls(**kwargs)
@@ -192,7 +193,7 @@ class Rule(Base):
 
     @staticmethod
     def _check_port(port):
-        # DEPRECATED: port == -1
+        # COMPAT: port == -1
         if port is None or port == -1:
             return None
         if 0 <= port < 65536:
@@ -227,17 +228,17 @@ class Rule(Base):
     def validate(self):
         '''Validate rule.'''
         if self.port_min is None and self.port_max is not None:
-            raise Exception('port_min is set, but port_max is not')
+            raise InvalidConfiguration('port_min is set, but port_max is not')
         elif self.port_max is None and self.port_min is not None:
-            raise Exception('port_max is set, but port_min is not')
+            raise InvalidConfiguration('port_max is set, but port_min is not')
 
         if self.protocol == Protocol.ICMP and (self.port_min is not None or
                                                self.port_max is not None):
-            raise Exception('Protocol is set to ICMP and port is specified')
+            raise InvalidConfiguration('Protocol is set to ICMP and port is specified')
 
         if self.cidr is not None:
             for ethertype, net in ((EtherType.IPv4, ipaddress.IPv4Network),
                                    (EtherType.IPv6, ipaddress.IPv6Network)):
                 if self.ethertype == ethertype and not isinstance(self.cidr, net):
-                    raise Exception(f'EtherType is set to {ethertype},'
-                                    f' but address is {type(self.cidr)}')
+                    raise InvalidConfiguration(f'EtherType is set to {ethertype},'
+                                               f' but address is {type(self.cidr)}')
