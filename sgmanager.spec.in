@@ -35,6 +35,7 @@ FLIT_NO_NETWORK=1 flit build --format wheel
 python3.6 -m venv %{buildroot}/opt/gdc/sgmanager
 . %{buildroot}/opt/gdc/sgmanager/bin/activate
 pip install -I dist/*.whl
+sed -i -e "s|from certifi import where|def where():\n    return '/etc/pki/tls/certs/ca-bundle.crt'|" %{buildroot}/opt/gdc/sgmanager/lib/python3.6/site-packages/requests/certs.py
 find %{buildroot}/opt/gdc/sgmanager -type f -print0 | xargs -0 sed -i -e 's,%{buildroot},,g'
 mkdir -p %{buildroot}%{_bindir}
 ln -s /opt/gdc/sgmanager/bin/sgmanager %{buildroot}%{_bindir}/sgmanager
