@@ -5,7 +5,7 @@ import logging
 
 from orderedset import OrderedSet
 
-from .rule import Rule
+from .rule import Rule, Direction as RuleDirection
 from .utils import Base
 
 logger = logging.getLogger(__name__)
@@ -59,10 +59,12 @@ class Group(Base):
     def from_remote(cls, **kwargs):
         '''Create group from OpenStack's json output.'''
         logger.debug(f'Creating remote group: {kwargs}')
+        # TODO: Even egress rules are supported, we will skip them
         info = {'name': kwargs['name'],
                 'description': kwargs.get('description'),
                 'rules': [Rule.from_remote(**rule)
-                          for rule in kwargs['security_group_rules']]}
+                          for rule in kwargs['security_group_rules']
+                          if rule['direction'] == 'ingress']}
         group = cls(**info)
         group._id = kwargs['id']
         return group
@@ -75,7 +77,8 @@ class Group(Base):
 
         kwargs['rules'] = [rule
                            for rule in kwargs.pop('rules', [])
-                           for rule in Rule.expand_local(**rule)]
+                           for rule in Rule.expand_local(**rule)
+                           if rule.direction == RuleDirection.Ingress]
         return cls(**kwargs)
 
     def validate(self):

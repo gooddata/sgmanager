@@ -49,7 +49,9 @@ class Rule(Base):
     def to_dict(self, user=False):
         '''Convert object to dictionary, mangling options for best user view if requested.'''
         if user:
-            d = {'protocol': self.protocol}
+            d = {}
+            if self.protocol is not None:
+                d['protocol'] = self.protocol
             if self.direction != Direction.Ingress:
                 # This is kinda default
                 d['direction'] = self.direction
@@ -86,7 +88,7 @@ class Rule(Base):
                 'port_min': kwargs['port_range_min'],
                 'port_max': kwargs['port_range_max'],
                 'cidr': kwargs['remote_ip_prefix'],
-                'group': kwargs['group'].get('name')}
+                'group': kwargs['remote_group_id']}
 
         rule = cls(**info)
         rule._id = kwargs['id']
@@ -189,7 +191,7 @@ class Rule(Base):
 
     @protocol.setter
     def protocol(self, value):
-        self._protocol = Protocol(value)
+        self._protocol = Protocol(value) if value is not None else None
 
     @staticmethod
     def _check_port(port):
