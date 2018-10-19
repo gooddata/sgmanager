@@ -74,6 +74,10 @@ of passing credentials for OpenStack environments:
 * `export OS_*` from environment variables
 * `clouds.yaml` and use `--os-cloud` option
 
-## Notes
+## Important Notes
 
-- Egress rules have not been tested
+- Multiple rules with the same name are unsupported
+  (even though this is supported in latest OS).
+  This means that you probably want to delete all groups
+  before using sgmanager.
+- Egress rules are ignored temporarily.

@@ -49,7 +49,18 @@ class SGManager:
 
     @remote.setter
     def remote(self, groups):
-        self._remote = OrderedSet(groups)
+        self._remote = OrderedSet(self._process_remote_groups(groups))
+
+    @staticmethod
+    def _process_remote_groups(groups):
+        gmap = {group._id: group.name for group in groups}
+        for group in groups:
+            for rule in group.rules:
+                # XXX: this is hacky because we rely on the fact that
+                #      it has been resolved if value looks like a group name
+                if rule.group is not None and rule.group not in gmap.values():
+                    rule.group = gmap[rule.group]
+        return groups
 
     def load_remote_groups(self):
         '''Load groups from OpenStack.'''
@@ -148,13 +159,15 @@ class SGManager:
 
         validate_groups(local)
 
-        def parse_groups(groups):
+        def parse_groups(groups, remote):
+            if remote:
+                self._process_remote_groups(groups)
             groups = {group.name: group for group in groups}
             keys = OrderedSet(groups.keys())
             return groups, keys
 
-        lgroups, lkeys = parse_groups(local)
-        rgroups, rkeys = parse_groups(remote)
+        lgroups, lkeys = parse_groups(local, False)
+        rgroups, rkeys = parse_groups(remote, True)
 
         changes = 0
         unchanged = 0
