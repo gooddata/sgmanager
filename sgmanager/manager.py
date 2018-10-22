@@ -247,7 +247,7 @@ class SGManager:
 
         # We've modified 'remote', so copy it again
         remote = OrderedSet(self.remote)
-        rgroups, rkeys = parse_groups(remote)
+        rgroups, rkeys = parse_groups(remote, True)
 
         # Added groups
         for group in groups_added:
@@ -255,7 +255,7 @@ class SGManager:
                 name=group.name,
                 description=group.description)
             remote.add(Group.from_remote(**ginfo))
-        rgroups, rkeys = parse_groups(remote)
+        rgroups, rkeys = parse_groups(remote, True)
 
         # Updated groups
         for rgroup, lgroup in groups_updated:
