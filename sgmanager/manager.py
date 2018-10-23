@@ -196,20 +196,24 @@ class SGManager:
                 # groups_updated.add((rgroup, lgroup))
                 pass
 
-            if rgroup.rules != lgroup.rules:
+            # FIXME: when comparing using OrderedSet, added rules part contains
+            #        all elements rather than different ones.
+            lrules, rrules = set(lgroup.rules), set(rgroup.rules)
+
+            if rrules != lrules:
                 # Added rules
-                for rule in lgroup.rules - rgroup.rules:
+                for rule in lrules - rrules:
                     rules_added.add((rgroup.name, rule))
                     changes += 1
 
                 # Removed rules
-                for rule in rgroup.rules - lgroup.rules:
+                for rule in rrules - lrules:
                     if remove:
                         rules_removed.add((rgroup.name, rule))
                         changes += 1
                     else:
                         unchanged += 1
-            unchanged += len(rgroup.rules & lgroup.rules)
+            unchanged += len(rrules & lrules)
 
         # Removed groups
         for group in (rgroups[name] for name in rkeys - lkeys):
