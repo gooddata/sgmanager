@@ -1,0 +1,9 @@
+default:
+  description: Default group
+  rules:
+  - cidr: [0.0.0.0/0]
+    groups: []
+    protocol: icmp
+    port: null
+    port_from: null
+    port_to: null

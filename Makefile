@@ -1,37 +1,34 @@
-VERSION := $(shell python setup.py --version)
+# This makefile is supposed to be used only from git repo
+ifeq ($(wildcard .git),)
+$(error This makefile works only from git repository)
+endif
 
-all: build
+$(shell git diff --quiet)
+ifneq ($(.SHELLSTATUS),0)
+#$(error git repository is dirty, fix this first! $(shell git diff))
+endif
+PYTHON ?= python3
+VERSION = $(shell $(PYTHON) -c "import sgmanager; print(sgmanager.__version__)")
+REVNUM = $(shell git rev-list --count HEAD)
+COMMIT = $(shell git rev-parse HEAD)
+SHORTCOMMIT = $(shell git rev-parse --short HEAD)
 
-tarball: sources
+TARBALL = sgmanager-$(VERSION)~git+$(REVNUM).$(SHORTCOMMIT).tar.gz
 
-sources: clean
-	tar czvf sgmanager.tar.gz $(shell git ls-tree  --name-only HEAD)
+sgmanager.spec: .FORCE
+	sed \
+		-e "s|@VERSION@|$(VERSION)|" \
+		-e "s|@REVNUM@|$(REVNUM)|" \
+		-e "s|@COMMIT@|$(COMMIT)|" \
+		-e "s|@SHORTCOMMIT@|$(SHORTCOMMIT)|" \
+		sgmanager.spec.in > sgmanager.spec
 
-build install test:
-	python setup.py $@
+tarball:
+	git archive --prefix=sgmanager-$(COMMIT)/ --format=tar.gz $(COMMIT) -o $(TARBALL)
 
-rpm: sources
-	# Prepare directories and source for rpmbuild
-	mkdir -p build/rpm/SOURCES
-	cp sgmanager*.tar.gz build/rpm/SOURCES/
-	mkdir -p build/rpm/SPECS
-	cp sgmanager.spec build/rpm/SPECS/
-	# Build RPM
-	rpmbuild --define "_topdir $(CURDIR)/build/rpm" -ba build/rpm/SPECS/sgmanager.spec
+srpm: sgmanager.spec tarball
+	rpmbuild -bs sgmanager.spec -D "_sourcedir $(PWD)" -D "_srcrpmdir $(PWD)/srpm"
 
-clean:
-	rm -f sgmanager.tar.gz
-	rm -rf sgmanager.egg-info
-	rm -rf build
-	rm -rf dist
-
-version:
-	# Use for easier version bumping.
-	# Helps keeping version consistent both in setup.py and sgmanager.spec
-	@echo "Current version: $(VERSION)"
-	@read -p "Type new version: " newversion; \
-	sed -i -e "s/version=.*/version='$$newversion',/" setup.py; \
-	sed -i -e "s/Version:\(\s*\).*/Version:\1$$newversion/" sgmanager.spec
-
-tag:
-	git tag "v$(VERSION)"
+.FORCE:
+.DEFAULT_GOAL := srpm
+.PHONY: tarball srpm

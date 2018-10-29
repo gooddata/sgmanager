@@ -1,0 +1,52 @@
+%global revnum @REVNUM@
+%global commit @COMMIT@
+%global shortcommit @SHORTCOMMIT@
+
+%global __python python3.6
+%global debug_package %{nil}
+
+Name:           sgmanager
+Version:        @VERSION@~git+%{revnum}.%{shortcommit}
+Release:        1%{?dist}
+Summary:        OpenStack Security Groups Management Tool
+
+License:        BSD
+URL:            https://github.com/gooddata/sgmanager
+Source:         %{url}/archive/%{commit}/%{name}-%{version}.tar.gz
+
+BuildRequires:  python36
+BuildRequires:  python36-devel
+Requires:       python36
+
+%description
+%{summary}.
+
+%prep
+%autosetup -n %{name}-%{commit}
+
+%build
+export LC_CTYPE=en_US.UTF-8
+python3.6 -m venv .venv
+. .venv/bin/activate
+pip install flit
+FLIT_NO_NETWORK=1 flit build --format wheel
+
+%install
+python3.6 -m venv %{buildroot}/opt/gdc/sgmanager
+. %{buildroot}/opt/gdc/sgmanager/bin/activate
+pip install -I dist/*.whl
+sed -i -e "s|from certifi import where|def where():\n    return '/etc/pki/tls/certs/ca-bundle.crt'|" %{buildroot}/opt/gdc/sgmanager/lib/python3.6/site-packages/requests/certs.py
+find %{buildroot}/opt/gdc/sgmanager -type f -print0 | xargs -0 sed -i -e 's,%{buildroot},,g'
+mkdir -p %{buildroot}%{_bindir}
+ln -s /opt/gdc/sgmanager/bin/sgmanager %{buildroot}%{_bindir}/sgmanager
+
+%check
+. .venv/bin/activate
+pip install pytest
+PYTHONPATH=%{buildroot}/opt/gdc/sgmanager/lib/python3.6/site-packages python -m pytest -vv
+
+%files
+%license LICENSE
+%doc README.md
+%{_bindir}/sgmanager
+/opt/gdc/sgmanager/
