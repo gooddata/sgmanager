@@ -12,9 +12,13 @@ from openstack.config import OpenStackConfig
 from .manager import SGManager
 from .utils import dump_groups, validate_groups
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger()
-
+logging.basicConfig(level=logging.ERROR)
+LOGGER = logging.getLogger('sgmanager')
+LOGGER_HANDLER = logging.StreamHandler()
+LOGGER_FORMATTER = logging.Formatter("%(asctime)s %(levelname)s: %(message)s")
+LOGGER_HANDLER.setFormatter(LOGGER_FORMATTER)
+LOGGER.addHandler(LOGGER_HANDLER)
+LOGGER.setLevel(logging.INFO)
 
 def main(argv=None):
     if argv is None:
@@ -24,6 +28,9 @@ def main(argv=None):
 
     parser = argparse.ArgumentParser()
     config.register_argparse_arguments(parser, argv)
+
+    parser.add_argument('-d', '--debug', action='store_true',
+                        help='Enable debugging')
 
     cmd = parser.add_subparsers(
         title='Available Commands',
@@ -90,6 +97,8 @@ def main(argv=None):
                                      remove=args.remove)
 
     args = parser.parse_args()
+    if args.debug:
+        LOGGER.setLevel(logging.DEBUG)
 
     manager = SGManager()
     locals()[args.command](manager, args)
