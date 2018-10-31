@@ -82,13 +82,20 @@ class Rule(Base):
     def from_remote(cls, **kwargs):
         '''Create rule from OpenStack's json output.'''
         logger.debug(f'Creating remote rule: {kwargs}')
+        # XXX: OpenStack SDK is not helping here.
+        #      Nova: {'remote_group_id': None, 'group': {'name': …}}
+        #      Neutron: {'remote_group_id': …}
+        if 'group' in kwargs:
+            group = kwargs['group'].get('name')
+        else:
+            group = kwargs['remote_group_id']
         info = {'direction': kwargs['direction'],
                 'ethertype': kwargs['ethertype'],
                 'protocol': kwargs['protocol'],
                 'port_min': kwargs['port_range_min'],
                 'port_max': kwargs['port_range_max'],
                 'cidr': kwargs['remote_ip_prefix'],
-                'group': kwargs['remote_group_id']}
+                'group': group}
 
         rule = cls(**info)
         rule._id = kwargs['id']
