@@ -25,6 +25,7 @@ class Protocol(StrEnum):
     TCP = 'tcp'
     UDP = 'udp'
     ICMP = 'icmp'
+    OSPF = 'ospf'
 
 
 class Rule(Base):
