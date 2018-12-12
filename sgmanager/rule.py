@@ -233,7 +233,7 @@ class Rule(Base):
 
     @cidr.setter
     def cidr(self, value):
-        self._cidr = ipaddress.ip_network(value) if value is not None else None
+        self._cidr = ipaddress.ip_network(value, False) if value is not None else None
 
     def validate(self):
         '''Validate rule.'''
