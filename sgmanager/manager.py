@@ -162,7 +162,7 @@ class SGManager:
         def parse_groups(groups, remote):
             if remote:
                 self._process_remote_groups(groups)
-            groups = {group.name: group for group in groups}
+            groups = {group.name: group for group in groups if group.name != 'default'}
             keys = OrderedSet(groups.keys())
             return groups, keys
 
@@ -218,6 +218,8 @@ class SGManager:
         # Removed groups
         for group in (rgroups[name] for name in rkeys - lkeys):
             if remove:
+                if group._project is None:
+                    continue
                 groups_removed.add(group)
                 changes += len(group.rules) + 1
             else:

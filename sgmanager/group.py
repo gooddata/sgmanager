@@ -17,6 +17,7 @@ class Group(Base):
         self.name = name
         self.description = description
         self.rules = OrderedSet(rules)
+        self._project = None
         self._id = None
 
     def to_dict(self, user=False):
@@ -67,6 +68,7 @@ class Group(Base):
                           if rule['direction'] == 'ingress']}
         group = cls(**info)
         group._id = kwargs['id']
+        group._project = kwargs['location']['project']['name']
         return group
 
     @classmethod
