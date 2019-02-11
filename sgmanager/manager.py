@@ -162,7 +162,7 @@ class SGManager:
         def parse_groups(groups, remote):
             if remote:
                 self._process_remote_groups(groups)
-            groups = {group.name: group for group in groups}
+            groups = {group.name: group for group in groups if group.name != 'default'}
             keys = OrderedSet(groups.keys())
             return groups, keys
 
