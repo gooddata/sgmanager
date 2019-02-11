@@ -218,6 +218,8 @@ class SGManager:
         # Removed groups
         for group in (rgroups[name] for name in rkeys - lkeys):
             if remove:
+                if group._project is None:
+                    continue
                 groups_removed.add(group)
                 changes += len(group.rules) + 1
             else:
