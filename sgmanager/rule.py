@@ -90,8 +90,12 @@ class Rule(Base):
             group = kwargs['group'].get('name')
         else:
             group = kwargs['remote_group_id']
+        if 'ethertype' in kwargs:
+            ethertype = kwargs['ethertype']
+        else:
+            ethertype = kwargs['ether_type']
         info = {'direction': kwargs['direction'],
-                'ethertype': kwargs['ethertype'],
+                'ethertype': ethertype,
                 'protocol': kwargs['protocol'],
                 'port_min': kwargs['port_range_min'],
                 'port_max': kwargs['port_range_max'],
