@@ -276,11 +276,12 @@ class SGManager:
             rgroup = rgroups[group_name]
             cidr = str(rule.cidr) if rule.cidr is not None else None
             group_id = rgroups[rule.group]._id if rule.group is not None else None
+            protocol = rule.protocol.value if rule.protocol is not None else None
             rinfo = self.connection.create_security_group_rule(
                 secgroup_name_or_id=rgroup._id,
                 port_range_min=rule.port_min,
                 port_range_max=rule.port_max,
-                protocol=rule.protocol.value,
+                protocol=protocol,
                 remote_ip_prefix=cidr,
                 remote_group_id=group_id,
                 direction=rule.direction.value,
