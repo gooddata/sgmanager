@@ -26,7 +26,7 @@ class Base(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def validate():
+    def validate(self):
         pass
 
     def dump(self):
