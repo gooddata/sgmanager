@@ -13,9 +13,10 @@ logger = logging.getLogger(__name__)
 
 class Group(Base):
     '''Single group with its rules.'''
-    def __init__(self, name, description=None, rules=None):
+    def __init__(self, name, description=None, tags=None, rules=None):
         self.name = name
         self.description = description
+        self.tags = tags
         self.rules = OrderedSet(rules)
         self._project = None
         self._id = None
@@ -26,12 +27,15 @@ class Group(Base):
             d = {}
             if self._description is not None and self.description != self.name:
                 d['description'] = self.description
+            if self.tags is not None and len(self.tags) > 0:
+                d['tags'] = tuple(self.tags)
             if len(self.rules) > 0:
                 d['rules'] = tuple(self.rules)
             return d
         else:
             return {'name': self.name,
                     'description': self.description,
+                    'tags': self.tags,
                     'rules': self.rules}
 
     @property
@@ -63,6 +67,7 @@ class Group(Base):
         # TODO: Even egress rules are supported, we will skip them
         info = {'name': kwargs['name'],
                 'description': kwargs.get('description'),
+                'tags': kwargs.get('tags'),
                 'rules': [Rule.from_remote(**rule)
                           for rule in kwargs['security_group_rules']
                           if rule['direction'] == 'ingress']}

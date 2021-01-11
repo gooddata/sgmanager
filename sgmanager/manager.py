@@ -151,7 +151,7 @@ class SGManager:
         self.local = groups
         return self.local
 
-    def update_remote_groups(self, dry_run=True, threshold=None, remove=True):
+    def update_remote_groups(self, dry_run=True, threshold=None, remove=True, exclude_tag=None):
         '''Update remote configuration with the local one.'''
         # Copy those so that we can modify them even with dry-run
         local = OrderedSet(self.local)
@@ -171,9 +171,11 @@ class SGManager:
 
         changes = 0
         unchanged = 0
+        excluded = 0
         groups_added = OrderedSet()
         groups_updated = OrderedSet()
         groups_removed = OrderedSet()
+        groups_excluded = OrderedSet()
         rules_added = OrderedSet()
         rules_removed = OrderedSet()
 
@@ -190,6 +192,12 @@ class SGManager:
                                for name in rkeys & lkeys):
             if rgroup not in groups_added:
                 unchanged += 1
+
+            # Exclude taged security groups
+            if exclude_tag is not None and exclude_tag in rgroup.tags:
+                excluded += 1
+                groups_excluded.add(rgroup)
+                continue
 
             if rgroup.description != lgroup.description:
                 # XXX: https://review.openstack.org/596609
@@ -217,6 +225,10 @@ class SGManager:
 
         # Removed groups
         for group in (rgroups[name] for name in rkeys - lkeys):
+            if exclude_tag is not None and exclude_tag in group.tags:
+                excluded += 1
+                groups_excluded.add(group)
+                continue
             if remove:
                 if group._project is None:
                     continue
@@ -224,6 +236,11 @@ class SGManager:
                 changes += len(group.rules) + 1
             else:
                 unchanged += len(group.rules) + 1
+
+        if excluded > 0:
+            logger.info(f'{excluded:d} excluded changes. Security groups taged as {exclude_tag!r}:')
+            for group in groups_excluded:
+                logger.info(f'  - Excluded group {group.name!r}')
 
         if changes == 0 and not groups_updated:
             return
