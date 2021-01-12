@@ -87,6 +87,11 @@ def main(argv=None):
         'config',
         type=pathlib.Path,
     )
+    cmd_update.add_argument(
+        '-e', '--exclude-tag',
+        dest='exclude_tag',
+        default='orchestrator=terraform',
+        help='Exclude taged security groups from removing and updating. Default tag is "orchestrator=terraform"')
 
     def update(manager, args):
         manager.connection = openstack.connect(config=args)
@@ -94,7 +99,8 @@ def main(argv=None):
         manager.load_remote_groups()
         manager.update_remote_groups(dry_run=args.dry_run,
                                      threshold=args.threshold,
-                                     remove=args.remove)
+                                     remove=args.remove,
+                                     exclude_tag=args.exclude_tag)
 
     args = parser.parse_args()
     if args.debug:
